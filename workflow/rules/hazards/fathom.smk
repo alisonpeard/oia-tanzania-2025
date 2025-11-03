@@ -1,3 +1,5 @@
+"""Rules to process Fathom flood data to standard hazard format."""
+
 def format_scenario(scenario):
     if scenario.startswith("SSP"):
         return scenario.replace("p", ".").replace("-", "_")
@@ -7,8 +9,8 @@ def format_scenario(scenario):
 
 rule mosaic_fathom:
     input:
-        zipfile=lambda wildcards: "{wd}/input/fathom/{floodtype}/{epoch}/{scenario}/1in{rp}.zip".format(
-            wd=INPUTS,
+        zipfile=lambda wildcards: "{path}/input/hazards/fathom/{floodtype}/{epoch}/{scenario}/1in{rp}.zip".format(
+            path=INPUTS,
             floodtype=wildcards.FLOODTYPE,
             epoch=wildcards.EPOCH,
             scenario=format_scenario(wildcards.SCENARIO),

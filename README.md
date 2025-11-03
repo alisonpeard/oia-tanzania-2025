@@ -4,6 +4,8 @@
 
 - Use zipfiles only
 - Do full flood direct damages (once)
+- All hazard files in .tif format with similar size
+- All infrastructure files in .geoparquet format
 
 ## Hazard data
 

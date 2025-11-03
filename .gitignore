@@ -10,6 +10,7 @@ venv/*
 src/snkit
 build
 rw.py
+.snakemake/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
