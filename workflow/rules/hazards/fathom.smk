@@ -1,0 +1,87 @@
+def format_scenario(scenario):
+    if scenario.startswith("SSP"):
+        return scenario.replace("p", ".").replace("-", "_")
+    elif scenario == "hist":
+        return "historical"
+
+
+rule mosaic_fathom:
+    input:
+        zipfile=lambda wildcards: "{wd}/input/fathom/{floodtype}/{epoch}/{scenario}/1in{rp}.zip".format(
+            wd=INPUTS,
+            floodtype=wildcards.FLOODTYPE,
+            epoch=wildcards.EPOCH,
+            scenario=format_scenario(wildcards.SCENARIO),
+            rp=int(wildcards.RP)
+        )
+    output:
+        tiff="../results/input/hazards/fathom/{FLOODTYPE}/{EPOCH}/{SCENARIO}/rp{RP}.tif"
+    shell:
+        """
+        TEMP_DIR=$(mktemp -d)
+
+        mkdir -p $(dirname {output.tiff})
+        trap "rm -rf $TEMP_DIR" EXIT
+        echo "Working in temporary directory: $TEMP_DIR"
+
+        echo "Listing files in zip archive..."
+        unzip -l {input.zipfile} | grep '\.tif$' | awk '{{print $NF}}' | while read file; do
+            echo "/vsizip/{input.zipfile}/$file"
+        done > $TEMP_DIR/tiles.txt
+
+        echo "Creating VRT from tiles..."
+        gdalbuildvrt $TEMP_DIR/temp_mosaic.vrt -input_file_list $TEMP_DIR/tiles.txt
+
+        echo "Normalizing NoData values..."
+        gdal_calc.py --calc="(A==-32767)*(-32768) + (A!=-32767)*(A)" \
+            --format=GTiff \
+            -A $TEMP_DIR/temp_mosaic.vrt \
+            --outfile=$TEMP_DIR/normalized_mosaic.tif \
+            --NoDataValue=-32768 \
+            --co BLOCKXSIZE=2048 \
+            --co BLOCKYSIZE=2048 \
+            --co SPARSE_OK=YES \
+            --config GDAL_CACHEMAX 50%
+
+        echo "Resampling to 90 m resolution..."
+        gdalwarp -tr 0.000833 0.000833 \
+            -r bilinear \
+            -srcnodata -32768 \
+            -dstnodata -32768 \
+            -wo INIT_DEST=NO_DATA \
+            $TEMP_DIR/normalized_mosaic.tif $TEMP_DIR/resampled_mosaic.tif
+
+        echo "Calculating final output..."
+        gdal_calc.py --calc="(A==-32768)*(-32768) + (A>-32767)*(A/100)" \
+            --format=GTiff \
+            --type=Float32 \
+            -A $TEMP_DIR/resampled_mosaic.tif \
+            --outfile={output.tiff} \
+            --NoDataValue=-32768 \
+            --co COMPRESS=LZW \
+            --co BIGTIFF=IF_SAFER \
+            --config GDAL_CACHEMAX 50%
+
+        rm -rf $TEMP_DIR
+        """
+
+
+# rule fathom_all_scenario:
+#     input:
+#         tiffs = expand(
+#             "results/input/hazard-fathom-{FLOODTYPE}/raw/{FLOODTYPE}_{SCENARIO}_{EPOCH}_rp{RP}.tif",
+#             FLOODTYPE=["pluvial", "fluvial", "coastal"],
+#             SCENARIO=["historical", "SSP2-4p5", "SSP5-8p5"],
+#             EPOCH=["2020", "2050", "2080"],
+#             RP=["00005", "00010", "00100", "00200", "00500", "01000"],
+#         )
+
+# rule fathom_all_historical:
+#     input:
+#         tiffs = expand(
+#             "results/input/hazard-fathom-{FLOODTYPE}/raw/{FLOODTYPE}_{SCENARIO}_{EPOCH}_rp{RP}.tif",
+#             FLOODTYPE=["pluvial", "fluvial", "coastal"],
+#             SCENARIO=["historical", "SSP2_4p5", "SSP5_8p5"],
+#             EPOCH=["2020", "2050", "2080"],
+#             RP=["00005", "00010", "00100", "00200", "00500", "01000"],
+#         )

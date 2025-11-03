@@ -1,3 +1,16 @@
+# Custom
+.DS_Store
+._*
+results/
+**/.ipynb_checkpoints
+*.pyc
+*.egg-info
+__pycache__/*
+venv/*
+src/snkit
+build
+rw.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
