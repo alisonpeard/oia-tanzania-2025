@@ -23,4 +23,4 @@ rule damage_costs:
     params:
         rehab_cost_dir="../config/rehab_costs"
     script:
-        "../scripts/risk/rehab_costs.py"
+        "../scripts/risk/damage_costs.py"

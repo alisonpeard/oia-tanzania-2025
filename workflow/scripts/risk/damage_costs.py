@@ -38,10 +38,10 @@ def main(input, output, params):
                     rehab_cost_source= Path(rehab_cost).stem
                     
                     if asset_type in rehab_cost_df.index:
-                        # TODO: Hanfle units properly
+                        # TODO: Handle units properly
                         cost: float = rehab_cost_df.loc[asset_type, "cost"]
                         print(f"Rehabilitation cost for {asset_type} from {hazard} hazard: {cost}")
-                        cost_col = '_'.join([damage_col, rehab_cost_source]).replace("damage-", "cost-")
+                        cost_col = damage_col.replace("damage-", "cost-") # TODO: handle multiple cost curves
                         asset_rehab_cost[cost_col] = cost * asset_rehab_cost[damage_col]
                     else:
                         logging.warning(f"No rehab cost found for asset type '{asset_type}' in hazard '{hazard}' cost file '{rehab_cost}'.")

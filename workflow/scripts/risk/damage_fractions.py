@@ -50,7 +50,7 @@ def main(input, output, params):
                     damage_curve_source = Path(damage_curve).stem
                     damage_function = make_damage_function(damage_df)
                     print(f"{asset_type} - {hazard}: {damage_curve_source}")
-                    damage_col = '_'.join([hazard_col, damage_curve_source]).replace("hazard-", "damage-")
+                    damage_col = hazard_col.replace("hazard-", "damage-") #TODO: handle multiple curves
                     asset_damage[damage_col] = asset_damage[hazard_col].apply(damage_function)
             else:
                 logging.warning(f"No damage curves found for asset type '{asset_type}' and hazard '{hazard}'.")
