@@ -1,5 +1,6 @@
 """Generic script to intersect a vector file with multiple rasters and get the max value"""
-import re
+import os
+from pathlib import Path
 import logging
 import rasterio
 import pandas as pd
@@ -8,6 +9,16 @@ from tqdm import tqdm
 
 import snail.intersection as snint
 from pyproj import Geod
+
+
+def check_geom_type(vector:gpd.GeoDataFrame):
+    if vector.empty:
+        raise ValueError("Input vector file is empty, cannot proceed.")
+    geom_type = vector.geometry.geom_type.unique()
+    if len(geom_type) > 1:
+        raise ValueError("Input vector has multiple geometry types: %s", geom_type)
+    assert vector.crs.to_epsg() == 4326, f"Input vector must be in EPSG:4326, not EPSG:{vector.crs.to_epsg()}"
+    return geom_type[0]
 
 
 def process_raster_grid(raster_files):
@@ -33,15 +44,6 @@ def process_raster_grid(raster_files):
                 )
     
     return grid
-
-
-def check_geom_type(vector:gpd.GeoDataFrame):
-    if vector.empty:
-        raise ValueError("Input vector file is empty, cannot proceed.")
-    geom_type = vector.geometry.geom_type.unique()
-    if len(geom_type) > 1:
-        raise ValueError("Input vector has multiple geometry types: %s", geom_type)
-    return geom_type[0]
 
 
 def process_point_data():
@@ -76,18 +78,17 @@ def process_polygon_data():
 def make_raster_basenames(raster_files):
     raster_basenames = []
     for raster_path in raster_files:
-        basename = rasterio.shutil._basename(raster_path)
-        basename = re.sub("\\.tif(f)?$", "", basename, re.IGNORECASE)
+        basename = Path(raster_path).stem  # Gets filename without extension
         raster_basenames.append(basename)
     return raster_basenames
 
 
-
 def copy_raster_values(vector_splits, raster_files):
+    """
+    N.B. this loop is the heavy lifting of this script
+    it reads hazard intensity values len(raster_files) * len(vector_splits) times
+    """
     raster_basenames = make_raster_basenames(raster_files)
-
-    # N.B. this loop is the heavy lifting of this script
-    # it reads hazard intensity values len(raster_files) * len(vector_splits) times
     logging.info("Adding raster values to split geometries")
 
     # to prevent a fragmented dataframe (and a memory explosion), add series to a dict
@@ -109,6 +110,8 @@ def copy_raster_values(vector_splits, raster_files):
 
 
 def main(input, output, params):
+
+    tqdm.pandas()
 
     vector = gpd.read_parquet(input.vector)
     geom_type = check_geom_type(vector)
@@ -136,7 +139,6 @@ if __name__ == "__main__":
     logging.basicConfig(
         format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO
     )
-    tqdm.pandas()
 
     input = snakemake.input
     output = snakemake.output

@@ -5,7 +5,7 @@ rule intersect:
     snakemake --cores 4 ../results/intersected/tza_road/tza_roads_network_edges.geoparquet
     """
     input:
-        vector="../results/input/assets/{source}/{asset_name}.parquet",
+        vector="../results/input/assets/{source}/{asset_name}.geoparquet",
         rasters=expand(
             "../results/input/hazards/{source}/{hazard_type}/{epoch}/{scenario}/rp{rp}.tif",
             source=["fathom"],
@@ -15,7 +15,7 @@ rule intersect:
             rp=["00020"],
         )
     output:
-        "../results/intersected/{source}/{asset_name}.geoparquet",
+        vector="../results/intersected/{source}/{asset_name}.geoparquet",
     params:
         copy_raster_values=True
     script:

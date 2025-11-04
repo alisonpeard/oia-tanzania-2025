@@ -58,10 +58,15 @@ snakemake --rerun-incomplete --cores 6 -- fathom_all_scenario
 
 ## Infrastructure data
 
-We currently have 
-- network.gpkg
-- edges.parquet
-- nodes.parquet
+Processed vector files go in inputs/assets
+
+We need single geometry type per asset. Pre-decompose into admin areas as necessary. Make sure it is in WGS84.
+
+### Handling networks
+
+Exploding MultiLineStrings needs to be reversible. Same for decomposing into admin areas.
+
+###
 
 Previously, on Open-GIRA
 
