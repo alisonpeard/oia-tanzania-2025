@@ -50,10 +50,11 @@ def process_raster_grid(raster_files):
 
 
 def process_point_data():
+    # buffer 
     raise NotImplementedError("Point data processing not implemented yet.")
 
 
-def process_linesting_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
+def process_linestring_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
     logging.info("Split edges")
 
     vector = vector.reset_index(drop=True)
@@ -124,7 +125,7 @@ def main(input, output, params):
     grid = process_raster_grid(input.rasters)
 
     if geom_type in ["LineString", "MultiLineString"]:
-        vector_splits = process_linesting_data(vector, grid)
+        vector_splits = process_linestring_data(vector, grid)
     elif geom_type in ["Point", "MultiPoint"]:
         vector_splits = process_point_data(vector, grid)
     elif geom_type in ["Polygon", "MultiPolygon"]:

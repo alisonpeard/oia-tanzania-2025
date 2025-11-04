@@ -18,11 +18,12 @@
 
 | Data type       | Format       | Location                                      |
 |-----------------|--------------|-----------------------------------------------|
-| Hazard     | GeoTIFF      | `/results/input/hazards/{source}/{hazard_type}/{epoch}/{scenario}/rp{rp}.tif` |
+| Hazard     | GeoTIFF      | `/results/input/hazards/{hazard}/{subcategory}/{epoch}/{scenario}/rp{rp}.tif` |
 | Assets         | GeoParquet   | |
 | Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset}.csv` |
 | Rehabilitation costs | CSV     | `config/damage_curves/{hazard}/{asset}.csv`|
 
+Damage curves must have 3 lines of header comments.
 
 ## Possibly useful scripts and rules from open-gira
 
@@ -60,7 +61,11 @@ snakemake --rerun-incomplete --cores 6 -- fathom_all_scenario
 
 Processed vector files go in inputs/assets
 
-We need single geometry type per asset. Pre-decompose into admin areas as necessary. Make sure it is in WGS84.
+Requirements (modify asset processing rules and scripts):
+- single geometry type per asset
+- pre-decompose into admin areas as necessary and store in folder with asset name
+- ensure it is in WGS84
+- needs an asset_type column that matches damage curves and rehab costs
 
 ### Handling networks
 

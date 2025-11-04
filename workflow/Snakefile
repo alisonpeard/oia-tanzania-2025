@@ -7,4 +7,4 @@ INPUTS = config["inputs"]
 include: "rules/hazards/fathom.smk"
 include: "rules/assets/tza_roads.smk"
 include: "rules/exposure.smk"
-include: "rules/risk.smk"
+include: "rules/damages.smk"

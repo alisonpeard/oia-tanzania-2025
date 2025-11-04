@@ -1,4 +1,3 @@
-"""Generic rules to perform vector-raster intersection."""
 from pathlib import Path
 
 
@@ -31,9 +30,9 @@ rule intersect_subregion:
     input:
         vector="../results/input/assets/{asset}/{subregion}.geoparquet",
         rasters=expand(
-            "../results/input/hazards/{source}/{hazard_type}_{epoch}_{scenario}_rp{rp}.tif",
-            source=["fathom"],
-            hazard_type=["fluvial"],
+            "../results/input/hazards/{hazard}-{subcategory}_{epoch}_{scenario}_rp{rp}.tif",
+            hazard=["flood"],
+            subcategory=["fluvial"],
             epoch=["2050"],
             scenario=["SSP2-4p5"],
             rp=["00020"],

@@ -21,6 +21,11 @@ def undo_subregion_formatting(subregion_formatted:str) -> str:
     return subregion
 
 
+def format_asset_type(asset_type:str) -> str:
+    asset_type = "road_" + asset_type
+    return asset_type
+
+
 def main(input, output, params):
 
     edges = gpd.read_parquet(input.edges).to_crs(params.crs)
@@ -45,6 +50,8 @@ def main(input, output, params):
         edges_exploded = edges_subregion.explode(index_parts=False).reset_index(drop=True)
         edges_exploded = edges_exploded.to_crs(params.crs)
         edges_exploded = edges_exploded[~edges_exploded.geometry.is_empty].reset_index(drop=True)
+
+        edges_exploded["asset_type"] = edges_exploded["asset_type"].apply(format_asset_type)
 
         if len(edges_exploded) == 0:
             logging.warning(f"No edges found in subregion {subregion}, skipping.")

@@ -1,5 +1,3 @@
-"""Rules to process Fathom flood data to standard hazard format."""
-
 def format_scenario(scenario):
     if scenario.startswith("SSP"):
         return scenario.replace("p", ".").replace("-", "_")
@@ -9,18 +7,18 @@ def format_scenario(scenario):
 
 rule mosaic_fathom:
     """
-    snakemake --cores 4 ../results/input/hazards/fathom/fluvial_2050_SSP2-4p5_rp00020.tif
+    snakemake --cores 4 ../results/input/hazards/flood-fluvial_2050_SSP2-4p5_rp00020.tif
     """
     input:
-        zipfile=lambda wildcards: "{path}/input/hazards/fathom/{floodtype}/{epoch}/{scenario}/1in{rp}.zip".format(
+        zipfile=lambda wildcards: "{path}/input/hazards/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
             path=INPUTS,
-            floodtype=wildcards.FLOODTYPE,
+            subcategory=wildcards.SUBCATEGORY,
             epoch=wildcards.EPOCH,
             scenario=format_scenario(wildcards.SCENARIO),
             rp=int(wildcards.RP)
         )
     output:
-        tiff="../results/input/hazards/fathom/{FLOODTYPE}_{EPOCH}_{SCENARIO}_rp{RP}.tif"
+        tiff="../results/input/hazards/flood-{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif"
     shell:
         """
         TEMP_DIR=$(mktemp -d)
@@ -71,7 +69,7 @@ rule mosaic_fathom:
         """
 
 
-# rule fathom_all_scenario:
+# rule all_fathom_scenarios:
 #     input:
 #         tiffs = expand(
 #             "results/input/hazard-fathom-{FLOODTYPE}/raw/{FLOODTYPE}_{SCENARIO}_{EPOCH}_rp{RP}.tif",
@@ -81,7 +79,7 @@ rule mosaic_fathom:
 #             RP=["00005", "00010", "00100", "00200", "00500", "01000"],
 #         )
 
-# rule fathom_all_historical:
+# rule all_fathom_historical:
 #     input:
 #         tiffs = expand(
 #             "results/input/hazard-fathom-{FLOODTYPE}/raw/{FLOODTYPE}_{SCENARIO}_{EPOCH}_rp{RP}.tif",
