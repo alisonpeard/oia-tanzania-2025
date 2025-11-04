@@ -18,7 +18,7 @@ The output is a geoparquet file with the following format
 ## To do
 
 - Add handling for multiple damage curves per asset+hazard combination (e.g., min, max, different sources)
-- Add rules to process all hazards in one go
+- Add rules to process all hazards in one go (scrape input/hazards directory)
 - Add handling for the full range of hazard types (e.g., drought, cyclones)
 
 ## Input data

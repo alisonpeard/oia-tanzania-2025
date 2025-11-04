@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 def get_all_subregion_inputs_for_asset(wildcards):
     asset = wildcards.asset
     assets_dir = Path(f"../results/input/assets/{asset}")
@@ -10,6 +9,18 @@ def get_all_subregion_inputs_for_asset(wildcards):
         asset=asset,
         subregion=subregions,
     )
+
+
+def get_all_processed_hazard_rasters():
+    hazards_dir = Path("../results/input/hazards")
+    hazards = []
+    for root, dirs, files in os.walk(hazards_dir):
+        for file in files:
+            if file.endswith(".tif"):
+                hazards.append(os.path.join(root,file))
+    if len(hazards) == 0:
+        raise ValueError("No processed hazard rasters found in ../results/input/hazards")
+    return hazards
 
 
 rule intersect_all_subregions_for_asset:
@@ -22,6 +33,7 @@ rule intersect_all_subregions_for_asset:
         touch("../results/exposure/{asset}/.all")
 
 
+
 rule intersect_subregion:
     """
     snakemake --cores 4 ../results/exposure/tza_road/dar_es_salaam.geoparquet
@@ -29,14 +41,7 @@ rule intersect_subregion:
     """
     input:
         vector="../results/input/assets/{asset}/{subregion}.geoparquet",
-        rasters=expand(
-            "../results/input/hazards/{hazard}-{subcategory}_{epoch}_{scenario}_rp{rp}.tif",
-            hazard=["flood"],
-            subcategory=["fluvial"],
-            epoch=["2050"],
-            scenario=["SSP2-4p5"],
-            rp=["00020"],
-        )
+        rasters=get_all_processed_hazard_rasters(),
     output:
         vector="../results/exposure/{asset}/{subregion}.geoparquet",
     params:

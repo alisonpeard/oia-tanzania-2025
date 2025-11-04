@@ -69,22 +69,23 @@ rule mosaic_fathom:
         """
 
 
-# rule all_fathom_scenarios:
-#     input:
-#         tiffs = expand(
-#             "results/input/hazard-fathom-{FLOODTYPE}/raw/{FLOODTYPE}_{SCENARIO}_{EPOCH}_rp{RP}.tif",
-#             FLOODTYPE=["pluvial", "fluvial", "coastal"],
-#             SCENARIO=["historical", "SSP2-4p5", "SSP5-8p5"],
-#             EPOCH=["2020", "2050", "2080"],
-#             RP=["00005", "00010", "00100", "00200", "00500", "01000"],
-#         )
+rule all_fathom_scenarios:
+    input:
+        tiffs = expand(
+            "../results/input/hazards/flood-{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
+            SUBCATEGORY=["pluvial", "fluvial", "coastal"],
+            EPOCH=["2050", "2080"],
+            SCENARIO=["SSP2-4p5", "SSP5-8p5"],
+            RP=["00005", "00010", "00100", "00200", "00500", "01000"],
+        )
 
-# rule all_fathom_historical:
-#     input:
-#         tiffs = expand(
-#             "results/input/hazard-fathom-{FLOODTYPE}/raw/{FLOODTYPE}_{SCENARIO}_{EPOCH}_rp{RP}.tif",
-#             FLOODTYPE=["pluvial", "fluvial", "coastal"],
-#             SCENARIO=["historical", "SSP2_4p5", "SSP5_8p5"],
-#             EPOCH=["2020", "2050", "2080"],
-#             RP=["00005", "00010", "00100", "00200", "00500", "01000"],
-#         )
+
+rule all_fathom_historical:
+    input:
+        tiffs = expand(
+            "../results/input/hazards/flood-{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
+            SUBCATEGORY=["pluvial", "fluvial", "coastal"],
+            EPOCH=["2020"],
+            SCENARIO=["historical"],
+            RP=["00005", "00010", "00100", "00200", "00500", "01000"],
+        )   
