@@ -5,3 +5,4 @@ configfile: "config.yaml"
 INPUTS = config["inputs"]
 
 include: "rules/hazards/fathom.smk"
+include: "rules/intersect.smk"

@@ -1,13 +1,34 @@
 [Ref. Somalia repository](https://github.com/alisonpeard/oia-somalia-2025)
 
-## Goals
+1. Load hazard data into standard format
+2. Load any asset data into standard format
+3. Do slicing as necessary
+    1. rasters
+    2. vectors
+4. Run vector-raster intersections
+    1. points
+    2. lines
+    3. polygons
+5. Calculate direct damages using damage curves
+6. Calculate rehabilitation costs using rehab costs
+7. Re-concatenate results as necessary
+8. Save a results file similar to original Open-GIRA output structure (maybe a bit simpler)
 
-- Use zipfiles only
-- Do full flood direct damages (once)
-- All hazard files in .tif format with similar size
-- All infrastructure files in .geoparquet format
+## Data structure
+
+| Data type       | Format       | Location                                      |
+|-----------------|--------------|-----------------------------------------------|
+| Hazard     | GeoTIFF      | `/results/input/hazards/{source}/{hazard_type}/{epoch}/{scenario}/rp{rp}.tif` |
+| Assets         | GeoParquet   | |
+| Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset}.csv` |
+| Rehabilitation costs | CSV     | `config/damage_curves/{hazard}/{asset}.csv`|
+
+
+## Possibly useful scripts and rules from open-gira
 
 ## Hazard data
+
+All processed hazard files are stored as `/results/input/hazards/{source}/{hazard_type}/{epoch}/{scenario}/rp{rp}.tif`
 
 ### Fathom flood data
 
