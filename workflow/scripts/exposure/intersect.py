@@ -11,13 +11,16 @@ import snail.intersection as snint
 from pyproj import Geod
 
 
-def check_geom_type(vector:gpd.GeoDataFrame):
+def check_geoms(vector:gpd.GeoDataFrame):
     if vector.empty:
         raise ValueError("Input vector file is empty, cannot proceed.")
     geom_type = vector.geometry.geom_type.unique()
     if len(geom_type) > 1:
         raise ValueError("Input vector has multiple geometry types: %s", geom_type)
     assert vector.crs.to_epsg() == 4326, f"Input vector must be in EPSG:4326, not EPSG:{vector.crs.to_epsg()}"
+    logging.debug(f"Invalid geometries: {(~vector.geometry.is_valid).sum()}")
+    logging.debug(f"Empty geometries: {vector.geometry.is_empty.sum()}")
+    logging.debug(f"Null geometries: {vector.geometry.isna().sum()}")
     return geom_type[0]
 
 
@@ -52,8 +55,11 @@ def process_point_data():
 
 def process_linesting_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
     logging.info("Split edges")
+
+    vector = vector.reset_index(drop=True)
+
     vector_splits = snint.split_linestrings(
-        vector.reset_index(drop=True), grid
+        vector, grid
     )
 
     logging.info("Split %d edges into %d pieces", len(vector), len(vector_splits))
@@ -114,7 +120,7 @@ def main(input, output, params):
     tqdm.pandas()
 
     vector = gpd.read_parquet(input.vector)
-    geom_type = check_geom_type(vector)
+    geom_type = check_geoms(vector)
     grid = process_raster_grid(input.rasters)
 
     if geom_type in ["LineString", "MultiLineString"]:

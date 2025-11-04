@@ -8,6 +8,9 @@ def format_scenario(scenario):
 
 
 rule mosaic_fathom:
+    """
+    snakemake --cores 4 ../results/input/hazards/fathom/fluvial_2050_SSP2-4p5_rp00020.tif
+    """
     input:
         zipfile=lambda wildcards: "{path}/input/hazards/fathom/{floodtype}/{epoch}/{scenario}/1in{rp}.zip".format(
             path=INPUTS,
@@ -17,7 +20,7 @@ rule mosaic_fathom:
             rp=int(wildcards.RP)
         )
     output:
-        tiff="../results/input/hazards/fathom/{FLOODTYPE}/{EPOCH}/{SCENARIO}/rp{RP}.tif"
+        tiff="../results/input/hazards/fathom/{FLOODTYPE}_{EPOCH}_{SCENARIO}_rp{RP}.tif"
     shell:
         """
         TEMP_DIR=$(mktemp -d)
