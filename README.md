@@ -1,37 +1,52 @@
-[Ref. Somalia repository](https://github.com/alisonpeard/oia-somalia-2025)
+## Quickstart
 
-1. Load hazard data into standard format
-2. Load any asset data into standard format
-3. Do slicing as necessary
-    1. rasters
-    2. vectors
-4. Run vector-raster intersections
-    1. points
-    2. lines
-    3. polygons
-5. Calculate direct damages using damage curves
-6. Calculate rehabilitation costs using rehab costs
-7. Re-concatenate results as necessary
-8. Save a results file similar to original Open-GIRA output structure (maybe a bit simpler)
+The following code will intersect an asset (category) with all hazard scenarios
+and compute damage and rehabilitation costs.
 
-## Data structure
+E.g., for roads in Tanzania, `tza_road`:
+
+```bash
+snakemake --cores 4 ../results/damage_costs/tza_road/.all
+```
+
+The output is a geoparquet file with the following format
+
+| id | hazard-{scenarios} | damage-{scenarios} | cost-{scenarios} | geometry |
+|-----|--------------------|--------------------|------------------|----------|
+| ... | float32            | float32            | float32          | geometry |
+
+## To do
+
+- Add handling for multiple damage curves per asset+hazard combination (e.g., min, max, different sources)
+- Add rules to process all hazards in one go
+- Add handling for the full range of hazard types (e.g., drought, cyclones)
+
+## Input data
+
+Store all input data somewhere local and set `inputs` in `config.yaml` to point to that location. For each new hazard or asset dataset, create a rule and script to process it into the standardised format in `results/input` and place them in the 'hazards' or 'assets' folders respectively. It doesn't matter how these are written as long as their outputs have the correct format and location for the workflow. Processing can also be done externally, and the files simply placed in the correct location.
+
+Data stored in `results/input` should have the following format:
 
 | Data type       | Format       | Location                                      |
 |-----------------|--------------|-----------------------------------------------|
 | Hazard     | GeoTIFF      | `/results/input/hazards/{hazard}/{subcategory}/{epoch}/{scenario}/rp{rp}.tif` |
-| Assets         | GeoParquet   | |
-| Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset}.csv` |
-| Rehabilitation costs | CSV     | `config/damage_curves/{hazard}/{asset}.csv`|
+| Assets         | GeoParquet   | `/results/input/assets/{asset}/{subregion}.geoparquet` |
 
-Damage curves must have 3 lines of header comments.
+The `{hazard}` wildcard must match the hazard names used in damage curves and rehabilitation costs. Asset files have the following requirements:
+- Have a single geometry type per asset
+- Have WGS84 proction
+- Have an `asset_type` column that matches labels in damage curves and rehab costs
 
-## Possibly useful scripts and rules from open-gira
+To do the damage estimations, the workflow uses damage curves and rehabilitation costs stored in `config/damage_curves`. These should be organised as follows:
 
-## Hazard data
+| Data type       | Format       | Location                                      |
+|-----------------|--------------|-----------------------------------------------|
+| Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset}/{source}.csv` |
+| Rehabilitation costs | CSV     | `config/damage_curves/{hazard}/{source}.csv`|
 
-All processed hazard files are stored as `/results/input/hazards/{source}/{hazard_type}/{epoch}/{scenario}/rp{rp}.tif`
+Use '#' to mark comments in the CSV files.
 
-### Fathom flood data
+### Notes on Fathom flood data
 
 The Fathom data is provided in 1° rasters, in separate (nested) folders for each flood-driver, time horizon, climate scenario, and return period. Original files are in 1 arc second resolution (~30 m), which is very high and slow, we resample to 3 arc second (~90 m) for processing efficiency.
 
@@ -57,37 +72,10 @@ snakemake --rerun-incomplete --cores 6 -- fathom_all_historical
 snakemake --rerun-incomplete --cores 6 -- fathom_all_scenario
 ```
 
-## Infrastructure data
-
-Processed vector files go in inputs/assets
-
-Requirements (modify asset processing rules and scripts):
-- single geometry type per asset
-- pre-decompose into admin areas as necessary and store in folder with asset name
-- ensure it is in WGS84
-- needs an asset_type column that matches damage curves and rehab costs
-
-### Handling networks
-
-Exploding MultiLineStrings needs to be reversible. Same for decomposing into admin areas.
-
-###
-
-Previously, on Open-GIRA
-
-```bash
-
-snakemake --rerun-incomplete --cores 4 -- results/direct_damages/somalia-latest_filter-road-residential/hazard-fathom-pluvial/EAD_and_cost_per_RP/slice-{0..63}.geoparquet
-```
-
-i.e., the syntax is
-
-```bash
-snakemake --rerun-incomplete --cores <N> -- results/direct_damages/<INFRA>/<HAZARD>/<METRIC>/slice-{0..<NUM_SLICES-1>}.geoparquet
-```
-
-## Damage curves
-
 ## Rehabilitation costs
 
 These are nuanced because they depend on the hazard type. Extreme heat buckles tracks, so rehabilitation costs only include the cost of replacing the buckled tracks. Flooding washes away the track bed, so rehabilitation costs include rebuilding the track bed as well as replacing the tracks.
+
+
+#### References
+[CCDR-Somalia repository](https://github.com/alisonpeard/oia-somalia-2025)
