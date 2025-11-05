@@ -45,7 +45,9 @@ To do the damage estimations, the workflow uses damage curves and rehabilitation
 
 Use '#' to mark comment lines in the CSV files.
 
-### Notes on Fathom flood data
+## Notes on datasets
+
+### Fathom flood data
 
 The Fathom data is provided in 1° rasters, in separate (nested) folders for each flood-driver, time horizon, climate scenario, and return period. Original files are in 1 arc second resolution (~30 m), which is very high and slow, we resample to 3 arc second (~90 m) for processing efficiency.
 
@@ -70,6 +72,10 @@ To process them with open-gira, run:
 snakemake --rerun-incomplete --cores 6 -- fathom_all_historical
 snakemake --rerun-incomplete --cores 6 -- fathom_all_scenario
 ```
+
+### STORM Cyclone data
+
+Currently have historical and 2080 RCP 8.5 data from 2--3 different models. We need to decide how to combine these. Perhaps by min, max, and medians estimats?
 
 ## Rehabilitation costs
 
