@@ -1,6 +1,6 @@
 ## Quickstart
 
-The following code will intersect an asset (vector) with all hazard scenarios (rasters)
+The following code will intersect an asset (vector in `results/input/assets`) with all hazard scenarios (all rasters in `results/input/hazards/`)
 and compute damage and rehabilitation costs.
 
 E.g., for roads in Tanzania, `tza_road`:
