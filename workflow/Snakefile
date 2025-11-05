@@ -4,6 +4,7 @@ configfile: "config.yaml"
 
 INPUTS = config["inputs"]
 
+include: "rules/hazards.smk"
 include: "rules/hazards/fathom.smk"
 include: "rules/assets/tza_roads.smk"
 include: "rules/exposure.smk"

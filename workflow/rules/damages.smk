@@ -24,6 +24,7 @@ def get_all_subregion_damage_costs_for_asset(wildcards):
 rule calculate_all_damage_fractions_for_asset:
     """
     snakemake --cores 4 ../results/damage_fractions/tza_road/.all
+    snakemake --cores 4 ../results/damage_fractions/tza_road/kilimanjaro.geoparquet
     """
     input:
         get_all_subregion_damage_fractions_for_asset

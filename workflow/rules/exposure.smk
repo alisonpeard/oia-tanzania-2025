@@ -11,15 +11,15 @@ def get_all_subregion_inputs_for_asset(wildcards):
     )
 
 
-def get_all_processed_hazard_rasters():
-    hazards_dir = Path("../results/input/hazards")
+def get_all_hazard_rasters():
+    hazards_dir = Path("../results/processed/hazards")
     hazards = []
     for root, dirs, files in os.walk(hazards_dir):
         for file in files:
             if file.endswith(".tif"):
                 hazards.append(os.path.join(root,file))
     if len(hazards) == 0:
-        raise ValueError("No processed hazard rasters found in ../results/input/hazards")
+        raise ValueError("No input hazard rasters found in ../results/processed/hazards")
     return hazards
 
 
@@ -41,7 +41,7 @@ rule intersect_subregion:
     """
     input:
         vector="../results/input/assets/{asset}/{subregion}.geoparquet",
-        rasters=get_all_processed_hazard_rasters(),
+        rasters=get_all_hazard_rasters(),
     output:
         vector="../results/exposure/{asset}/{subregion}.geoparquet",
     params:
