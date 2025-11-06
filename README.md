@@ -34,7 +34,7 @@ Data stored in `results/input` should have the following format:
 
 The `{hazard}` wildcard must match the hazard names used to classify damage curves and rehabilitation costs. Asset files have the following requirements:
 - Have a single geometry type per asset, e.g., LineString, Polygon, Point (no MultiLineStrings)
-- Have WGS84 proction
+- Have WGS84 projection
 - Have three columns: (unique) `id`, `asset_type` and `geometry`. `asset_type` column that matches naming for damage curves and rehab costs
 
 Hazard rasters must have properly defined NoData values.
