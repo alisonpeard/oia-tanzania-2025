@@ -26,6 +26,7 @@ def get_all_hazard_rasters():
 rule intersect_all_subregions_for_asset:
     """
     snakemake --cores 4 ../results/exposure/tza_road/.all
+    snakemake --cores 4 ../results/exposure/tza_road/kilimanjaro.geoparquet
     """
     input:
         get_all_subregion_inputs_for_asset
