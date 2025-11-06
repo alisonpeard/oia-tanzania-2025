@@ -43,8 +43,10 @@ To do the damage estimations, the workflow uses damage curves and rehabilitation
 
 | Data type       | Format       | Location                                      |
 |-----------------|--------------|-----------------------------------------------|
-| Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset}/{source}.csv` |
+| Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset_type}/{source}.csv` |
 | Rehabilitation costs | CSV     | `config/damage_curves/{hazard}/{source}.csv`|
+
+Rehabilitation costs are indexed `asset_type`.
 
 Use '#' to mark comment lines in the CSV files.
 
