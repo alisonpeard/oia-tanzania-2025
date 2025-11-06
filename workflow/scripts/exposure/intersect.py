@@ -11,6 +11,9 @@ import snail.intersection as snint
 from pyproj import Geod
 
 
+ASSET_COLS = ["id", "asset_type", "geometry"]
+
+
 def check_geoms(vector:gpd.GeoDataFrame):
     if vector.empty:
         raise ValueError("Input vector file is empty, cannot proceed.")
@@ -105,7 +108,7 @@ def copy_raster_values(vector_splits, raster_files):
     for i in tqdm(range(len(raster_files))):
         colname = f"hazard-{raster_basenames[i]}"
         with rasterio.open(raster_files[i]) as src:
-            data = src.read(1)
+            data = src.read(1, masked=True)
             raster_data[colname] = snint.get_raster_values_for_splits(
                 vector_splits, data, index_i="raster_i", index_j="raster_j"
             )
@@ -120,7 +123,7 @@ def main(input, output, params):
 
     tqdm.pandas()
 
-    vector = gpd.read_parquet(input.vector)
+    vector = gpd.read_parquet(input.vector, columns=ASSET_COLS)
     geom_type = check_geoms(vector)
     grid = process_raster_grid(input.rasters)
 
