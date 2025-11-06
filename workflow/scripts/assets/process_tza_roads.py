@@ -37,27 +37,33 @@ def main(input, output, params):
 
     os.makedirs(output.edgedir, exist_ok=True)
 
+    edges_with_subregion = gpd.sjoin(
+        edges, admin[["shapeName", "geometry"]],
+        how="inner", predicate="intersects"
+    )
+
+    edges_with_subregion["overlap"] = edges_with_subregion.apply(
+    lambda row: row.geometry.intersection(admin[admin["shapeName"] == row["shapeName"]].geometry.iloc[0]).length, 
+    axis=1
+    )
+    
+    edges_with_subregion = edges_with_subregion.sort_values("overlap", ascending=False).drop_duplicates(
+        subset=[col for col in edges.columns if col != 'geometry'], keep="first"
+    ).drop(columns=["overlap"])
+
     for subregion in subregions:
-        admin_subregion = admin[admin["shapeName"] == subregion]
         subregion = format_subregion_name(subregion)
         print(f"Processing subregion {subregion}.")
 
-        edges_subregion = gpd.overlay(
-            edges,
-            admin_subregion, how="intersection"
-        )
+        edges_subregion = edges_with_subregion[edges_with_subregion["shapeName"] == subregion].copy()
+        edges_subregion = edges_subregion.drop(columns=["index_right", "shapeName"])
+        edges_subregion["asset_type"] = edges_subregion["asset_type"].apply(format_asset_type)
 
-        edges_exploded = edges_subregion.explode(index_parts=False).reset_index(drop=True)
-        edges_exploded = edges_exploded.to_crs(params.crs)
-        edges_exploded = edges_exploded[~edges_exploded.geometry.is_empty].reset_index(drop=True)
-
-        edges_exploded["asset_type"] = edges_exploded["asset_type"].apply(format_asset_type)
-
-        if len(edges_exploded) == 0:
+        if len(edges_subregion) == 0:
             logging.warning(f"No edges found in subregion {subregion}, skipping.")
             continue
             
-        edges_exploded.to_parquet(
+        edges_subregion.to_parquet(
             os.path.join(output.edgedir, f"{subregion}.geoparquet"),
             index=False
         )
