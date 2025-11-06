@@ -18,6 +18,7 @@ The output is a geoparquet file with the following format
 ## To do
 
 - Add handling for multiple damage curves per asset+hazard combination (e.g., min, max, different sources)
+- Finish unsplitting code (requires no dulpicate IDs in asset files)
 - Add handling for the full range of hazard types (e.g., drought, cyclones)
 
 ## Input data
