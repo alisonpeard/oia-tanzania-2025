@@ -34,7 +34,9 @@ Data stored in `results/input` should have the following format:
 The `{hazard}` wildcard must match the hazard names used to classify damage curves and rehabilitation costs. Asset files have the following requirements:
 - Have a single geometry type per asset, e.g., LineString, Polygon, Point (no MultiLineStrings)
 - Have WGS84 proction
-- Have an `asset_type` column that matches naming for damage curves and rehab costs
+- Have three columns: (unique) `id`, `asset_type` and `geometry`. `asset_type` column that matches naming for damage curves and rehab costs
+
+Hazard rasters must have properly defined NoData values.
 
 To do the damage estimations, the workflow uses damage curves and rehabilitation costs stored in `config/damage_curves` and `config/rehab_costs`. These should be organised as follows:
 
@@ -76,6 +78,12 @@ snakemake --rerun-incomplete --cores 6 -- fathom_all_scenario
 ### STORM Cyclone data
 
 Currently have historical and 2080 RCP 8.5 data from 2--3 different models. We need to decide how to combine these. Perhaps by min, max, and medians estimats?
+
+### Road datasets
+
+This dataset has duplicate IDs and needs cleaning, will need to use [snkit](https://github.com/nismod/snkit) for this.
+
+![Sample of duplicate road IDs in Dar es Salaam road dataset (total 13 duplicates)](analysis/figures/tza_road_duplicate_samples.png)
 
 ## Rehabilitation costs
 
