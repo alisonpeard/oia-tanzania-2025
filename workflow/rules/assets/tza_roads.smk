@@ -8,6 +8,6 @@ rule process_tza_roads:
     output:
         edgedir=directory("../results/input/assets/tza_road"),
     params:
-        crs="EPSG:4326"
+        local_crs=config["local_crs"]
     script:
         "../../scripts/assets/process_tza_roads.py"

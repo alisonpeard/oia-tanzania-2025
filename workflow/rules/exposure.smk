@@ -12,7 +12,7 @@ def get_all_subregion_inputs_for_asset(wildcards):
 
 
 def get_all_hazard_rasters():
-    hazards_dir = Path("../results/processed/hazards")
+    hazards_dir = Path("../results/aligned/hazards")
     hazards = []
     for root, dirs, files in os.walk(hazards_dir):
         for file in files:
@@ -34,7 +34,6 @@ rule intersect_all_subregions_for_asset:
         touch("../results/exposure/{asset}/.all")
 
 
-
 rule intersect_subregion:
     """
     snakemake --cores 4 ../results/exposure/tza_road/dar_es_salaam.geoparquet
@@ -44,9 +43,10 @@ rule intersect_subregion:
         vector="../results/input/assets/{asset}/{subregion}.geoparquet",
         rasters=get_all_hazard_rasters(),
     output:
-        vector="../results/exposure/{asset}/{subregion}.geoparquet",
+        vector=temp("../results/exposure/{asset}/{subregion}.geoparquet"),
     params:
-        copy_raster_values=True
+        copy_raster_values=True,
+        crs=config["local_crs"]
     script:
         "../scripts/exposure/intersect.py"
 

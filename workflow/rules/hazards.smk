@@ -24,7 +24,7 @@ rule align_hazard_rasters:
     input:
         rasters=get_all_input_hazard_rasters,
     output:
-        outdir=temp(directory("../results/processed/hazards"))
+        outdir=temp(directory("../results/aligned/hazards"))
     script:
         "../scripts/hazards/align_rasters.py"
         

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 def get_all_subregion_damage_fractions_for_asset(wildcards):
     asset = wildcards.asset
     assets_dir = Path(f"../results/input/assets/{asset}")
@@ -9,6 +10,7 @@ def get_all_subregion_damage_fractions_for_asset(wildcards):
         asset=asset,
         subregion=subregions,
     )
+
 
 def get_all_subregion_damage_costs_for_asset(wildcards):
     asset = wildcards.asset
@@ -44,12 +46,12 @@ rule calculate_all_damage_costs_for_asset:
 
 rule damage_fractions:
     """
-    snakemake --cores 4 ../results/damage_fractions/tza_road/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/damages/fractions/tza_road/kilimanjaro.geoparquet
     """
     input:
         vector="../results/exposure/{asset}/{subregion}.geoparquet"
     output:
-        vector="../results/damage_fractions/{asset}/{subregion}.geoparquet"
+        vector=temp("../results/damages/fractions/{asset}/{subregion}.geoparquet")
     params:
         damage_curve_dir="../config/damage_curves"
     script:
@@ -58,13 +60,26 @@ rule damage_fractions:
 
 rule damage_costs:
     """
-    snakemake --cores 4 ../results/damage_costs/tza_road/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/damages/costs/tza_road/kilimanjaro.geoparquet
     """
     input:
-        vector="../results/damage_fractions/{asset}/{subregion}.geoparquet"
+        vector="../results/damages/fractions/{asset}/{subregion}.geoparquet"
     output:
-        vector="../results/damage_costs/{asset}/{subregion}.geoparquet"
+        vector=temp("../results/damages/costs/{asset}/{subregion}.geoparquet")
     params:
         rehab_cost_dir="../config/rehab_costs"
     script:
         "../scripts/risk/damage_costs.py"
+
+
+rule unsplit_costs:
+    """
+    snakemake --cores 4 ../results/damages/final/tza_road/kilimanjaro.geoparquet
+    """
+    input:
+        vector="../results/damages/costs/{asset}/{subregion}.geoparquet",
+        reference="../results/input/assets/{asset}/{subregion}.geoparquet"
+    output:
+        vector="../results/damages/final/{asset}/{subregion}.geoparquet"
+    script:
+        "../scripts/assets/unsplit.py"
