@@ -86,9 +86,7 @@ Currently have historical and 2080 RCP 8.5 data from 2--3 different models. We n
 
 Stored in geoparquet format. Some projections need to be aligned.
 
-![](analysis/figures/inputs/tza_road_network.png)
-![](analysis/figures/inputs/tza_railway_network.png)
-![](analysis/figures/inputs/tza_maritime_ports_network.png)
+<img src="analysis/figures/inputs/tza_road_network.png" height="200" /> <img src="analysis/figures/inputs/tza_railway_network.png" height="200" /> <img src="analysis/figures/inputs/tza_maritime_ports_network.png" height="200" />
 
 
 ## Rehabilitation costs
