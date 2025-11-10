@@ -52,28 +52,29 @@ def process_raster_grid(raster_files):
     return grid
 
 
-def process_point_data():
-    # buffer 
-    raise NotImplementedError("Point data processing not implemented yet.")
+def process_point_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
+    vector = vector.reset_index(drop=True)
+    logging.info("Finding indices...")
+    vector_splits = snint.apply_indices(
+        vector, grid, index_i="raster_i", index_j="raster_j"
+    )
+    return vector_splits
 
 
 def process_linestring_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
-    logging.info("Split edges")
-
+    logging.info("Splitting edges...")
     vector = vector.reset_index(drop=True)
-
     vector_splits = snint.split_linestrings(
         vector, grid
     )
-
     logging.info("Split %d edges into %d pieces", len(vector), len(vector_splits))
 
-    logging.info("Find indices")
+    logging.info("Finding indices...")
     vector_splits = snint.apply_indices(
         vector_splits, grid, index_i="raster_i", index_j="raster_j"
     )
 
-    logging.info("Calculate split segment lengths")
+    logging.info("Calculating lengths of split segments...")
     geod = Geod(ellps="WGS84")
     vector_splits["length_km"] = (
         vector_splits.geometry.progress_apply(geod.geometry_length) / 1e3
@@ -81,8 +82,25 @@ def process_linestring_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
     return vector_splits
 
 
-def process_polygon_data():
-    raise NotImplementedError("Polygon data processing not implemented yet.")
+def process_polygon_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
+    logging.info("Splitting polygons...")
+    vector = vector.reset_index(drop=True)
+    vector_splits = snint.split_polygons(
+        vector, grid
+    )
+    logging.info("Split %d polygons into %d pieces", len(vector), len(vector_splits))
+
+    logging.info("Findinh indices...")
+    vector_splits = snint.apply_indices(
+        vector_splits, grid, index_i="raster_i", index_j="raster_j"
+    )
+
+    logging.info("Calculating areas of split segments...")
+    geod = Geod(ellps="WGS84")
+    vector_splits["area_km"] = (
+        vector_splits.geometry.progress_apply(geod.geometry_area_perimeter) / 1e3
+    )
+    return vector_splits
 
 
 def make_raster_basenames(raster_files):

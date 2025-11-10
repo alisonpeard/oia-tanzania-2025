@@ -19,7 +19,7 @@ def get_all_hazard_rasters():
             if file.endswith(".tif"):
                 hazards.append(os.path.join(root,file))
     if len(hazards) == 0:
-        raise ValueError("No input hazard rasters found in ../results/processed/hazards")
+        raise ValueError("No input hazard rasters found in ../results/aligned/hazards")
     return hazards
 
 
@@ -37,6 +37,7 @@ rule intersect_all_subregions_for_asset:
 rule intersect_subregion:
     """
     snakemake --cores 4 ../results/exposure/tza_road/dar_es_salaam.geoparquet
+    snakemake --cores 4 ../results/exposure/tza_airports/dar_es_salaam.geoparquet
     snakemake --cores 4 ../results/exposure/tza_road/kilimanjaro.geoparquet
     """
     input:

@@ -6,6 +6,9 @@ INPUTS = config["inputs"]
 
 include: "rules/hazards.smk"
 include: "rules/hazards/fathom.smk"
-include: "rules/assets/tza_roads.smk"
+
+include: "rules/assets/linestrings.smk"
+include: "rules/assets/polygons.smk"
+
 include: "rules/exposure.smk"
 include: "rules/damages.smk"

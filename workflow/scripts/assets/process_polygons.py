@@ -22,15 +22,15 @@ def undo_subregion_formatting(subregion_formatted:str) -> str:
     return subregion
 
 
-def format_asset_type(asset_type:str) -> str:
-    asset_type = "road_" + asset_type
+def format_asset_type(asset_type:str, prefix:str) -> str:
+    asset_type = prefix + "_" + asset_type
     return asset_type
 
 
 def calculate_overlap(row, admin:dict):
     return row.geometry.intersection(
         admin[row["subregion"]]
-    ).length
+    ).area
 
 
 def prepare_admin_data(admin):
@@ -47,59 +47,61 @@ def check_for_duplicates(gdf, column="id"):
     assert n == n_unique, f"Found {n - n_unique} duplicate indices in GeoDataFrame."
 
 
-def intersect_by_overlap(edges, admin):
-    check_for_duplicates(edges, column="id")
+def intersect_by_overlap(polys, admin):
+    check_for_duplicates(polys, column="id")
     check_for_duplicates(admin, column="subregion")
 
-    edges_with_admin = gpd.sjoin(
-        edges, admin, how="inner", predicate="intersects"
+    polys_with_admin = gpd.sjoin(
+        polys, admin, how="inner", predicate="intersects"
     )
     admin_dict = dict(zip(admin['subregion'], admin.geometry))
     tqdm.pandas(desc="Calculating overlaps")
-    edges_with_admin["overlap"] = edges_with_admin.progress_apply(
+    polys_with_admin["overlap"] = polys_with_admin.progress_apply(
         calculate_overlap, axis=1, admin=admin_dict
     )
-    edges_with_subregion = edges_with_admin.sort_values("overlap", ascending=False)
-    edges_with_subregion = edges_with_subregion.drop_duplicates(
-        subset=[col for col in edges.columns if col != 'geometry'], keep="first"
+    polys_with_subregion = polys_with_admin.sort_values("overlap", ascending=False)
+    polys_with_subregion = polys_with_subregion.drop_duplicates(
+        subset=[col for col in polys.columns if col != 'geometry'], keep="first"
     ).drop(columns=["overlap"])
-    return edges_with_subregion
+    return polys_with_subregion
 
 
 def main(input, output, params):
-    edges = gpd.read_parquet(input.edges).to_crs(params.local_crs)
+    polys = gpd.read_parquet(input.polys).to_crs(params.local_crs)
     admin = gpd.read_file(input.admin).to_crs(params.local_crs)
     logging.info(f"Using local projection EPSG:{params.local_crs}.")
 
     admin = prepare_admin_data(admin)
-    edges = intersect_by_overlap(edges, admin)
+    polys = intersect_by_overlap(polys, admin)
 
     subregions = admin["subregion"].unique().tolist()
     logging.info(f"Found {len(subregions)} subregions.")
 
-    os.makedirs(output.edgedir, exist_ok=True)
-    logging.info(f"Saving subregions to: {output.edgedir}.")
+    os.makedirs(output.polydir, exist_ok=True)
+    logging.info(f"Saving subregions to: {output.polydir}.")
 
     skipped = []
     for subregion in (pbar := tqdm(subregions)):
         pbar.set_postfix({'subregion': subregion})
 
-        edges_subregion = edges[edges["subregion"] == subregion].copy()
-        edges_subregion = edges_subregion.drop(columns=["index_right", "subregion"])
-        edges_subregion["asset_type"] = edges_subregion["asset_type"].apply(format_asset_type)
+        polys_subregion = polys[polys["subregion"] == subregion].copy()
+        polys_subregion = polys_subregion.drop(columns=["index_right", "subregion"])
+        polys_subregion["asset_type"] = polys_subregion["asset_type"].apply(
+            format_asset_type, prefix=params.asset_type
+        )
 
-        if len(edges_subregion) == 0:
+        if len(polys_subregion) == 0:
             skipped.append(subregion)
             continue
 
-        edges_subregion = edges_subregion.to_crs("EPSG:4326")
-        edges_subregion.to_parquet(
-            os.path.join(output.edgedir, f"{subregion}.geoparquet"),
+        polys_subregion = polys_subregion.to_crs("EPSG:4326")
+        polys_subregion.to_parquet(
+            os.path.join(output.polydir, f"{subregion}.geoparquet"),
             index=False
         )
     
     if len(skipped) > 0:
-        logging.warning(f"No edges found for subregions: {*skipped,}")
+        logging.warning(f"No polygons found for subregions: {*skipped,}")
     logging.info("Done. Saved output with EPSG:4326 projection.")
 
 
