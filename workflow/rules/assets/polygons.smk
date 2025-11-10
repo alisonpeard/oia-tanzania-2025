@@ -4,7 +4,7 @@ rule process_airports:
     """
     input:
         polys=f"{INPUTS}/input/assets/geoparquets/tza_airports_polygons.parquet",
-        admin=f"{INPUTS}/input/admin/geoboundaries/geoBoundaries-TZA-ADM1.gpkg"
+        admin=f"{INPUTS}/input/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg"
     output:
         polydir=directory("../results/input/assets/tza_airports"),
     params:

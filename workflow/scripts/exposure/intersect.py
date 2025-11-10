@@ -27,7 +27,7 @@ def check_geoms(vector:gpd.GeoDataFrame):
     return geom_type[0]
 
 
-def process_raster_grid(raster_files):
+def process_raster_grid(raster_files:list[str]) -> snint.GridDefinition:
     grid = snint.GridDefinition.from_raster(raster_files[0])
     logging.info(f"{grid=}")
 
@@ -52,16 +52,21 @@ def process_raster_grid(raster_files):
     return grid
 
 
-def process_point_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
+def process_point_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.GeoDataFrame:
+    grid = process_raster_grid(rasters)
     vector = vector.reset_index(drop=True)
     logging.info("Finding indices...")
     vector_splits = snint.apply_indices(
         vector, grid, index_i="raster_i", index_j="raster_j"
     )
+    vector_splits = copy_raster_values(vector_splits, rasters)
     return vector_splits
 
 
-def process_linestring_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
+def process_linestring_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.GeoDataFrame:
+
+    grid = process_raster_grid(rasters)
+
     logging.info("Splitting edges...")
     vector = vector.reset_index(drop=True)
     vector_splits = snint.split_linestrings(
@@ -79,28 +84,28 @@ def process_linestring_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
     vector_splits["length_km"] = (
         vector_splits.geometry.progress_apply(geod.geometry_length) / 1e3
     )
+    vector_splits = copy_raster_values(vector_splits, rasters)
     return vector_splits
 
 
-def process_polygon_data(vector:gpd.GeoDataFrame, grid:snint.GridDefinition):
-    logging.info("Splitting polygons...")
-    vector = vector.reset_index(drop=True)
-    vector_splits = snint.split_polygons(
-        vector, grid
-    )
-    logging.info("Split %d polygons into %d pieces", len(vector), len(vector_splits))
+def process_polygon_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.GeoDataFrame:
+    import tempfile
+    from exactextract import exact_extract
 
-    logging.info("Findinh indices...")
-    vector_splits = snint.apply_indices(
-        vector_splits, grid, index_i="raster_i", index_j="raster_j"
-    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpfile = os.path.join(tmpdir, "asset.shp")
+        vector.to_file(tmpfile)
 
-    logging.info("Calculating areas of split segments...")
-    geod = Geod(ellps="WGS84")
-    vector_splits["area_km"] = (
-        vector_splits.geometry.progress_apply(geod.geometry_area_perimeter) / 1e3
-    )
-    return vector_splits
+        for raster in rasters:
+            hazcol = f"hazard-{Path(raster).stem}"
+            hazard_stats = exact_extract(
+                raster, tmpfile, ["max"],
+                progress=True, output="pandas"
+            )
+            vector[hazcol] = hazard_stats["max"].astype(float).values
+    
+    vector = vector.set_index("id")
+    return vector
 
 
 def make_raster_basenames(raster_files):
@@ -111,7 +116,7 @@ def make_raster_basenames(raster_files):
     return raster_basenames
 
 
-def copy_raster_values(vector_splits, raster_files):
+def copy_raster_values(vector_splits:gpd.GeoDataFrame, raster_files:list[str]) -> gpd.GeoDataFrame:
     """
     N.B. this loop is the heavy lifting of this script
     it reads hazard intensity values len(raster_files) * len(vector_splits) times
@@ -134,6 +139,7 @@ def copy_raster_values(vector_splits, raster_files):
     raster_data = pd.DataFrame(raster_data)
     vector_splits = pd.concat([vector_splits, raster_data], axis="columns")
     assert len(raster_data) == len(vector_splits)
+
     return vector_splits
 
 
@@ -143,20 +149,16 @@ def main(input, output, params):
 
     vector = gpd.read_parquet(input.vector, columns=ASSET_COLS)
     geom_type = check_geoms(vector)
-    grid = process_raster_grid(input.rasters)
 
     if geom_type in ["LineString", "MultiLineString"]:
-        vector_splits = process_linestring_data(vector, grid)
+        vector_splits = process_linestring_data(vector, input.rasters)
     elif geom_type in ["Point", "MultiPoint"]:
-        vector_splits = process_point_data(vector, grid)
+        vector_splits = process_point_data(vector, input.rasters)
     elif geom_type in ["Polygon", "MultiPolygon"]:
-        vector_splits = process_polygon_data(vector, grid)
+        vector_splits = process_polygon_data(vector, input.rasters)
     else:
         raise ValueError(f"Unknown geometry type {geom_type}.")
     
-    if params.copy_raster_values:
-        vector_splits = copy_raster_values(vector_splits, input.rasters)
-
     logging.info(f"Write data {vector_splits.shape=} {vector_splits.columns=}")
     vector_splits.to_parquet(output.vector)
 

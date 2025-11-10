@@ -4,7 +4,7 @@ rule process_roads:
     """
     input:
         edges=f"{INPUTS}/input/assets/geoparquets/tza_roads_edges.parquet",
-        admin=f"{INPUTS}/input/admin/geoboundaries/geoBoundaries-TZA-ADM1.gpkg"
+        admin=f"{INPUTS}/input/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg"
     output:
         edgedir=directory("../results/input/assets/tza_road"),
     params:
@@ -20,7 +20,7 @@ rule process_railways:
     """
     input:
         edges=f"{INPUTS}/input/assets/geoparquets/tza_railway_edges.parquet",
-        admin=f"{INPUTS}/input/admin/geoboundaries/geoBoundaries-TZA-ADM1.gpkg"
+        admin=f"{INPUTS}/input/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg"
     output:
         edgedir=directory("../results/input/assets/tza_rail"),
     params:

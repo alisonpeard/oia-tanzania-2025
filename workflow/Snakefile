@@ -3,6 +3,7 @@ import os
 configfile: "config.yaml"
 
 INPUTS = config["inputs"]
+ADMIN_LEVEL = config["admin_level"]
 
 include: "rules/hazards.smk"
 include: "rules/hazards/fathom.smk"

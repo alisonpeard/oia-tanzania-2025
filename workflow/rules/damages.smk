@@ -60,7 +60,8 @@ rule damage_fractions:
 
 rule damage_costs:
     """
-    snakemake --cores 4 ../results/damages/costs/tza_road/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/damages/costs/tza_road/dar_es_salaam.geoparquet
+    snakemake --cores 4 ../results/damages/costs/tza_airports/dar_es_salaam.geoparquet
     """
     input:
         vector="../results/damages/fractions/{asset}/{subregion}.geoparquet"
@@ -88,6 +89,7 @@ rule unsplit_costs:
 rule verify_asset_exposure:
     """
     snakemake --cores 4 ../results/damages/verified/tza_road/kilimanjaro.done
+    snakemake --cores 4 ../results/damages/verified/tza_airports/dar_es_salaam.done
     """
     input:
         vector="../results/damages/final/{asset}/{subregion}.geoparquet",

@@ -37,8 +37,8 @@ rule intersect_all_subregions_for_asset:
 rule intersect_subregion:
     """
     snakemake --cores 4 ../results/exposure/tza_road/dar_es_salaam.geoparquet
-    snakemake --cores 4 ../results/exposure/tza_airports/dar_es_salaam.geoparquet
     snakemake --cores 4 ../results/exposure/tza_road/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/exposure/tza_airports/kigoma__urban.geoparquet
     """
     input:
         vector="../results/input/assets/{asset}/{subregion}.geoparquet",

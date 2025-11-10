@@ -8,6 +8,7 @@ def format_scenario(scenario):
 rule mosaic_fathom:
     """
     snakemake --cores 4 ../results/input/hazards/flood-fluvial_2050_SSP2-4p5_rp00020.tif
+    snakemake --cores 4 ../results/input/hazards/flood-pluvial_2050_SSP5-8p5_rp00500.tif
     """
     input:
         zipfile=lambda wildcards: "{path}/input/hazards/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
