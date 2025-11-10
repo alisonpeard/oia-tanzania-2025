@@ -21,7 +21,8 @@ def raster_to_geodataframe(raster:xr.DataArray) -> gpd.GeoDataFrame:
         )
     )
     gdf = gpd.GeoDataFrame.from_features(results, crs="EPSG:4326")
-    gdf = gdf[gdf["value"] > 0]
+    gdf = gdf.fillna(0.)
+    # gdf = gdf[gdf["value"] > 0]
     return gdf
 
 
@@ -39,9 +40,11 @@ def verify_asset_exposure(idx, gdf, hazard, hazcol):
     hazard = hazard.rio.clip_box(minx=x0, miny=y0, maxx=x1, maxy=y1)
     hazard = raster_to_geodataframe(hazard)
     intersection = gpd.overlay(segment, hazard, how="intersection")
-    assert np.isclose(intersection["value"].max(), gdf.loc[idx, hazcol]), \
-      "Max hazard values do not match"
-    logging.info("Hazard values match.")
+    max_result_value = gdf.loc[idx, hazcol]
+    max_raster_value = intersection["value"].max()
+    assert np.isclose(max_raster_value, max_result_value), \
+      f"Max hazard values do not match: {max_raster_value} (raster) != {max_result_value} (result)"
+    logging.info(f"Hazard values match. {max_raster_value} (raster) == {max_result_value} (result)")
 
 
 def main(input):

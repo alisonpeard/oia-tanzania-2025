@@ -6,7 +6,7 @@ import geopandas as gpd
 
 
 def main(input, output, params):
-    gdf = gpd.read_parquet(input.vector)
+    gdf = gpd.read_parquet(input.vector).reset_index()
 
     hazard_columns = [col for col in gdf.columns if col.startswith("hazard-")]
     damage_columns = [col for col in gdf.columns if col.startswith("damage-")]
