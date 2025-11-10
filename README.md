@@ -82,11 +82,14 @@ snakemake --rerun-incomplete --cores 6 -- fathom_all_scenario
 
 Currently have historical and 2080 RCP 8.5 data from 2--3 different models. We need to decide how to combine these. Perhaps by min, max, and medians estimats?
 
-### Road datasets
+### Asset datasets
 
-This dataset has duplicate IDs and needs cleaning, will need to use [snkit](https://github.com/nismod/snkit) for this.
+Stored in geoparquet format. Some projections need to be aligned.
 
-![Sample of duplicate road IDs in Dar es Salaam road dataset (total 13 duplicates)](analysis/figures/tza_road_duplicate_samples.png)
+![](analysis/figures/inputs/tza_road_network.png)
+![](analysis/figures/inputs/tza_railway_network.png)
+![](analysis/figures/inputs/tza_maritime_ports_network.png)
+
 
 ## Rehabilitation costs
 

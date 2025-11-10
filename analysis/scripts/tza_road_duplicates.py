@@ -7,7 +7,6 @@ input_asset_dir = "../../results/input/assets/tza_road/"
 subregions = os.listdir(input_asset_dir)
 subregions = [s for s in subregions if s.endswith(".geoparquet")]
 
-# %%
 for subregion in subregions:
     gdf_ref = gpd.read_parquet(os.path.join(input_asset_dir, subregion))
     gdf_ref = gdf_ref.set_index("id").sort_index()
