@@ -25,13 +25,12 @@ def get_all_subregion_damage_costs_for_asset(wildcards):
 
 rule calculate_all_damage_fractions_for_asset:
     """
-    snakemake --cores 4 ../results/damage_fractions/tza_road/.all
-    snakemake --cores 4 ../results/damage_fractions/tza_road/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/damages/fractions/tza_road/.all
     """
     input:
         get_all_subregion_damage_fractions_for_asset
     output:
-        touch("../results/damage_fractions/{asset}/.all")
+        touch("../results/damages/fractions/{asset}/.all")
 
 
 rule calculate_all_damage_costs_for_asset:
@@ -41,12 +40,13 @@ rule calculate_all_damage_costs_for_asset:
     input:
         get_all_subregion_damage_costs_for_asset
     output:
-        touch("../results/damage_costs/{asset}/.all")
+        touch("../results/damages/costs/{asset}/.all")
 
 
 rule damage_fractions:
     """
     snakemake --cores 4 ../results/damages/fractions/tza_road/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/damages/fractions/tza_road/dar_es_salaam.geoparquet
     """
     input:
         vector="../results/exposure/{asset}/{subregion}.geoparquet"
@@ -83,3 +83,17 @@ rule unsplit_costs:
         vector="../results/damages/final/{asset}/{subregion}.geoparquet"
     script:
         "../scripts/assets/unsplit.py"
+
+
+rule verify_asset_exposure:
+    """
+    snakemake --cores 4 ../results/damages/verified/tza_road/kilimanjaro.done
+    """
+    input:
+        vector="../results/damages/final/{asset}/{subregion}.geoparquet",
+        reference="../results/input/assets/{asset}/{subregion}.geoparquet",
+        hazdir="../results/aligned/hazards"
+    output:
+        touch("../results/damages/verified/{asset}/{subregion}.done")
+    script:
+        "../scripts/assets/verify_asset_exposure.py"
