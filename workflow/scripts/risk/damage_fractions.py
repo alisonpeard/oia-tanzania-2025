@@ -15,10 +15,10 @@ def get_hazard_from_colname(hazcol):
     return hazcol.split("_")[0].split('-')[1]
 
 
-def make_damage_function(df:pd.DataFrame):
+def make_damage_function(df:pd.DataFrame, suffix="mean"):
     hazard_intensity, damage_fraction = (
         df["intensity"],
-        df["damage_fraction_mean"],
+        df["damage_fraction" + "_" + suffix],
     )
     bounds = tuple(f(damage_fraction) for f in (min, max))
     return interp1d(
@@ -47,10 +47,13 @@ def main(input, output, params):
             print(f"Using damage curve: {damage_curve}")
             damage_df = pd.read_csv(os.path.join(damage_curve_dir, damage_curve), comment='#')
             damage_curve_source = Path(damage_curve).stem
-            damage_function = make_damage_function(damage_df)
+
             print(f"{asset_type} - {hazard}: {damage_curve_source}")
-            damage_col = hazard_col.replace("hazard-", "damage-")
-            asset_damage[damage_col] = asset_damage[hazard_col].apply(damage_function)
+
+            for suffix in ["mean", "min", "max"]:
+                damage_function = make_damage_function(damage_df, suffix=suffix)
+                damage_col = hazard_col.replace("hazard-", "damage-") + "_" + suffix
+                asset_damage[damage_col] = asset_damage[hazard_col].apply(damage_function)
 
         asset_damages.append(asset_damage)
     

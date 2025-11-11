@@ -36,8 +36,8 @@ def get_all_subregion_results_for_asset(wildcards):
 
 rule calculate_all_damage_fractions_for_asset:
     """
-    snakemake --cores 4 ../results/damages/fractions/tza_road/.all
-    snakemake --cores 4 ../results/damages/fractions/tza_airports/.all
+    snakemake --notemp --cores 4 ../results/damages/fractions/tza_road/.all
+    snakemake --notemp --cores 4 ../results/damages/fractions/tza_airports/.all
     """
     input:
         get_all_subregion_damage_fractions_for_asset
@@ -47,11 +47,11 @@ rule calculate_all_damage_fractions_for_asset:
 
 rule calculate_all_damage_costs_for_asset:
     """
-    snakemake --cores 4 ../results/exposure/tza_road/.all
-    snakemake --cores 4 ../results/exposure/tza_airports/.all
+    snakemake --notemp --cores 4 ../results/damages/costs/tza_road/.all
+    snakemake --notemp --cores 4 ../results/damages/costs/tza_airports/.all
     """
     input:
-        get_all_subregion_damage_fractions_for_asset
+        get_all_subregion_damage_costs_for_asset
     output:
         touch("../results/damages/costs/{asset}/.all")
 
@@ -130,6 +130,7 @@ rule verify_all_asset_exposure:
         get_all_asset_verifications
     output:
         touch("../results/damages/verified/{asset}/.all")
+
 
 rule verify_asset_exposure:
     """
