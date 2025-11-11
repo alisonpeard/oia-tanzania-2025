@@ -3,7 +3,7 @@ rule process_airports:
     snakemake --cores 4 ../results/input/assets/tza_airports
     """
     input:
-        polys=f"{INPUTS}/input/assets/geoparquets/tza_airports_polygons.parquet",
+        polys=f"{INPUTS}/input/mini_assets/geoparquets/tza_airports_polygons.parquet",
         admin=f"{INPUTS}/input/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg"
     output:
         polydir=directory("../results/input/assets/tza_airports"),

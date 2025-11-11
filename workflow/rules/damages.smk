@@ -98,4 +98,4 @@ rule verify_asset_exposure:
     output:
         touch("../results/damages/verified/{asset}/{subregion}.done")
     script:
-        "../scripts/assets/verify_asset_exposure.py"
+        "../scripts/exposure/verify_asset_exposure.py"
