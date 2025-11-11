@@ -58,19 +58,19 @@ rule damage_fractions:
         "../scripts/risk/damage_fractions.py"
 
 
-rule damage_costs:
-    """
-    snakemake --cores 4 ../results/damages/costs/tza_road/dar_es_salaam.geoparquet
-    snakemake --cores 4 ../results/damages/costs/tza_airports/dar_es_salaam.geoparquet
-    """
-    input:
-        vector="../results/damages/fractions/{asset}/{subregion}.geoparquet"
-    output:
-        vector=temp("../results/damages/costs/{asset}/{subregion}.geoparquet")
-    params:
-        rehab_cost_dir="../config/rehab_costs"
-    script:
-        "../scripts/risk/damage_costs.py"
+# rule damage_costs:
+#     """
+#     snakemake --cores 4 ../results/damages/costs/tza_road/dar_es_salaam.geoparquet
+#     snakemake --cores 4 ../results/damages/costs/tza_airports/dar_es_salaam.geoparquet
+#     """
+#     input:
+#         vector="../results/damages/fractions/{asset}/{subregion}.geoparquet"
+#     output:
+#         vector=temp("../results/damages/costs/{asset}/{subregion}.geoparquet")
+#     params:
+#         rehab_cost_dir="../config/rehab_costs"
+#     script:
+#         "../scripts/risk/damage_costs.py"
 
 
 rule unsplit_costs:
@@ -78,7 +78,7 @@ rule unsplit_costs:
     snakemake --cores 4 ../results/damages/final/tza_road/kilimanjaro.geoparquet
     """
     input:
-        vector="../results/damages/costs/{asset}/{subregion}.geoparquet",
+        vector="../results/damages/fractions/{asset}/{subregion}.geoparquet",
         reference="../results/input/assets/{asset}/{subregion}.geoparquet"
     output:
         vector="../results/damages/final/{asset}/{subregion}.geoparquet"
