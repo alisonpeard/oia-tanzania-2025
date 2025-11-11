@@ -11,7 +11,7 @@ def get_all_subregion_inputs_for_asset(wildcards):
     )
 
 
-def get_all_hazard_rasters():
+def get_all_aligned_hazards():
     hazards_dir = Path("../results/aligned/hazards")
     hazards = []
     for root, dirs, files in os.walk(hazards_dir):
@@ -42,7 +42,7 @@ rule intersect_subregion:
     """
     input:
         vector="../results/input/assets/{asset}/{subregion}.geoparquet",
-        rasters=get_all_hazard_rasters(),
+        rasters=get_all_aligned_hazards(),
     output:
         vector=temp("../results/exposure/{asset}/{subregion}.geoparquet"),
     params:
