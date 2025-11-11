@@ -60,6 +60,8 @@ def process_point_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.GeoDat
         vector, grid, index_i="raster_i", index_j="raster_j"
     )
     vector_splits = copy_raster_values(vector_splits, rasters)
+    vector["unit"] = 1
+    vector["unit_type"] = "unit"
     return vector_splits
 
 
@@ -81,9 +83,10 @@ def process_linestring_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.G
 
     logging.info("Calculating lengths of split segments...")
     geod = Geod(ellps="WGS84")
-    vector_splits["length_km"] = (
-        vector_splits.geometry.progress_apply(geod.geometry_length) / 1e3
+    vector_splits["unit"] = (
+        vector_splits.geometry.progress_apply(geod.geometry_length)
     )
+    vector_splits["unit_type"] = ["length_m"] * len(vector_splits)
     vector_splits = copy_raster_values(vector_splits, rasters)
     return vector_splits
 
@@ -99,11 +102,21 @@ def process_polygon_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.GeoD
         for raster in rasters:
             hazcol = f"hazard-{Path(raster).stem}"
             hazard_stats = exact_extract(
-                raster, tmpfile, ["max"],
+                raster, tmpfile, ["max"],   
                 progress=True, output="pandas"
             )
             vector[hazcol] = hazard_stats["max"].astype(float).values
-    
+
+    geod = Geod(ellps="WGS84")
+
+    def calculate_area(geom):
+        area, _ = geod.geometry_area_perimeter(geom)
+        return abs(area)
+
+    vector["unit"] = (
+        vector.geometry.progress_apply(calculate_area)
+    )
+    vector["unit_type"] = ["area_sqm2"] * len(vector)
     vector = vector.set_index("id")
     return vector
 

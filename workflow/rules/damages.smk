@@ -59,6 +59,7 @@ rule calculate_all_damage_costs_for_asset:
 rule calculate_final_results_for_asset:
     """
     snakemake --cores 4 ../results/damages/final/tza_airports/.all
+    snakemake --cores 4 ../results/damages/final/tza_road/.all
     """
     input:
         get_all_subregion_results_for_asset
@@ -100,6 +101,7 @@ rule damage_fractions:
 rule unsplit_costs:
     """
     snakemake --cores 4 ../results/damages/final/tza_road/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/damages/final/tza_airports/dar_es_salaam.geoparquet
     """
     input:
         vector="../results/damages/fractions/{asset}/{subregion}.geoparquet",

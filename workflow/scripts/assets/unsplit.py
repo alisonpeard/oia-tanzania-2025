@@ -16,8 +16,12 @@ def main(input, output, params):
     agg_func = {col: "max" for col in risk_columns} | \
                 {col: "mean" for col in damage_columns} | \
                     {col: "sum" for col in cost_columns}
+    
+    meta_columns = ["asset_type", "unit", "unit_type"]
+    meta_agg = {"unit": "sum", 'unit_type': "first", "asset_type": "first"}
+    agg_func.update(meta_agg)
 
-    gdf = gdf[["id"] + risk_columns].copy()
+    gdf = gdf[["id"] + meta_columns + risk_columns].copy()
     gdf_grouped = gdf.groupby("id").agg(agg_func).sort_index()
 
     # check input vector data for duplicates
