@@ -48,6 +48,8 @@ To do the damage estimations, the workflow uses damage curves and rehabilitation
 
 Rehabilitation costs are indexed `asset_type`.
 
+For damage curves, have an `intensity` column, then three columns for damage fractions: `damage_fraction_max`, `damage_fraction_min`, `damage_fraction_mean`. Use commenting `#` to note the units of intensity.
+
 Use '#' to mark comment lines in the CSV files.
 
 ## Notes on datasets

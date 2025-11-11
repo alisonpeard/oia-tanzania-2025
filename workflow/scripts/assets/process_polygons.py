@@ -23,7 +23,9 @@ def undo_subregion_formatting(subregion_formatted:str) -> str:
 
 
 def format_asset_type(asset_type:str, prefix:str) -> str:
-    asset_type = prefix + "_" + asset_type
+    # not doing predix for now
+    # can easily add later if needed
+    # asset_type = prefix + "_" + asset_type
     return asset_type
 
 

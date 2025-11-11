@@ -5,7 +5,6 @@ def get_all_input_hazards(wildcards):
     """Input function that runs at execution time"""
     hazards_dir = Path("../results/input/hazards")
     hazards = []
-    print(os.listdir(hazards_dir))
     for root, dirs, files in os.walk(hazards_dir):
         for file in files:
             if file.endswith(".tif"):

@@ -26,6 +26,7 @@ def get_all_aligned_hazards():
 rule intersect_all_subregions_for_asset:
     """
     snakemake --cores 4 ../results/exposure/tza_road/.all
+    snakemake --cores 4 ../results/exposure/tza_airports/.all
     snakemake --cores 4 ../results/exposure/tza_road/kilimanjaro.geoparquet
     """
     input:
@@ -38,13 +39,13 @@ rule intersect_subregion:
     """
     snakemake --cores 4 ../results/exposure/tza_road/dar_es_salaam.geoparquet
     snakemake --cores 4 ../results/exposure/tza_road/kilimanjaro.geoparquet
-    snakemake --cores 4 ../results/exposure/tza_airports/kigoma__urban.geoparquet
+    snakemake --cores 4 ../results/exposure/tza_airports/dar_es_salaam.geoparquet
     """
     input:
         vector="../results/input/assets/{asset}/{subregion}.geoparquet",
         rasters=get_all_aligned_hazards(),
     output:
-        vector=temp("../results/exposure/{asset}/{subregion}.geoparquet"),
+        vector="../results/exposure/{asset}/{subregion}.geoparquet",
     params:
         copy_raster_values=True,
         crs=config["local_crs"]
