@@ -41,6 +41,10 @@ def main(input, output, params):
                     damage_fraction = asset_damages[damage_col]
                     units = asset_damages["unit"]
 
+                    assert asset_damages["unit_type"][0] == unit, \
+                        f"Unit type mismatch for asset type '{asset_type}' in hazard '{hazard}': " \
+                        f"{asset_damages['unit_type'][0]} != {unit}"
+
                     cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
                     asset_damages[cost_col] = cost * damage_fraction * units
             else:

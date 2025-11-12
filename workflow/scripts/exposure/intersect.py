@@ -7,6 +7,9 @@ import pandas as pd
 import geopandas as gpd
 from tqdm import tqdm
 
+import tempfile
+from exactextract import exact_extract
+
 import snail.intersection as snint
 from pyproj import Geod
 
@@ -86,14 +89,12 @@ def process_linestring_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.G
     vector_splits["unit"] = (
         vector_splits.geometry.progress_apply(geod.geometry_length)
     )
-    vector_splits["unit_type"] = ["length_m"] * len(vector_splits)
+    vector_splits["unit_type"] = "m"
     vector_splits = copy_raster_values(vector_splits, rasters)
     return vector_splits
 
 
 def process_polygon_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.GeoDataFrame:
-    import tempfile
-    from exactextract import exact_extract
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpfile = os.path.join(tmpdir, "asset.shp")
@@ -116,7 +117,7 @@ def process_polygon_data(vector:gpd.GeoDataFrame, rasters:list[str]) -> gpd.GeoD
     vector["unit"] = (
         vector.geometry.progress_apply(calculate_area)
     )
-    vector["unit_type"] = ["area_sqm2"] * len(vector)
+    vector["unit_type"] = "sqm"
     vector = vector.set_index("id")
     return vector
 
