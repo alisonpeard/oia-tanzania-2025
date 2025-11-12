@@ -9,17 +9,18 @@ E.g., for roads in Tanzania, `tza_road`:
 snakemake --cores 4 ../results/damage_costs/tza_road/.all
 ```
 
-The output is a geoparquet file with the following format
+The outputs geoparquet files in `results/damages/final` for each subregion, with the following format:
 
-| id | hazard-{scenarios} | damage-{scenarios} | cost-{scenarios} | geometry |
-|-----|--------------------|--------------------|------------------|----------|
-| ... | float32            | float32            | float32          | geometry |
+| id | hazard-{scenarios} | damage-{scenarios} | cost-{scenarios} | unit | unit_type | geometry |
+|-----|--------------------|--------------------|------------------|----------|----------|----------|
+| ... | float32            | float32            | float32          | float32 | str |  geometry |
 
 ## To do
 
-- Add handling for multiple damage curves per asset+hazard combination (e.g., min, max, different sources)
-- Finish unsplitting code (requires no dulpicate IDs in asset files)
-- Add handling for the full range of hazard types (e.g., drought, cyclones)
+- Add EAD calculation code
+- Add point geometry handling
+- Test with cyclone and landslide hazard data
+- Decide whether to create a separate repo for figures (
 
 ## Input data
 
@@ -43,12 +44,12 @@ To do the damage estimations, the workflow uses damage curves and rehabilitation
 
 | Data type       | Format       | Location                                      |
 |-----------------|--------------|-----------------------------------------------|
-| Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset_type}/{source}.csv` |
-| Rehabilitation costs | CSV     | `config/damage_curves/{hazard}/{source}.csv`|
+| Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset_type}.csv` |
+| Rehabilitation costs | CSV     | `config/damage_curves/{hazard}.csv`|
 
-Rehabilitation costs are indexed `asset_type`.
+Rehabilitation costs are indexed by `asset_type`.
 
-For damage curves, have an `intensity` column, then three columns for damage fractions: `damage_fraction_max`, `damage_fraction_min`, `damage_fraction_mean`. Use commenting `#` to note the units of intensity.
+For damage curves, have an `intensity` column, then three columns for damage fractions: `damage_fraction_max`, `damage_fraction_min`, `damage_fraction_mean`. Use commenting `#` to note the units of intensity. Costs are specified in `costs_per_unit` with a separate `unit_type` column indicating `m` (LineStrings) or `sqm` (Polygons) or `unit` (Points). Example processing scripts to get input costs and curves into the right format are in `analysis/scripts/`.
 
 Use '#' to mark comment lines in the CSV files.
 
@@ -89,11 +90,6 @@ Currently have historical and 2080 RCP 8.5 data from 2--3 different models. We n
 Stored in geoparquet format. Some projections need to be aligned.
 
 <img src="analysis/figures/inputs/tza_road_network.png" height="200" /> <img src="analysis/figures/inputs/tza_railway_network.png" height="200" /> <img src="analysis/figures/inputs/tza_maritime_ports_network.png" height="200" />
-
-
-## Rehabilitation costs
-
-These are nuanced because they depend on the hazard type. Extreme heat buckles tracks, so rehabilitation costs only include the cost of replacing the buckled tracks. Flooding washes away the track bed, so rehabilitation costs include rebuilding the track bed as well as replacing the tracks.
 
 #### References
 
