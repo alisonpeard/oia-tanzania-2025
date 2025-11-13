@@ -53,4 +53,17 @@ rule intersect_subregion:
         "../scripts/exposure/intersect.py"
 
 
+rule subtract_design_standards:
+    """
+    snakemake --cores 4 ../results/residual_exposure/tza_road/kilimanjaro.geoparquet
+    """
+    input:
+        vector="../results/exposure/{asset}/{subregion}.geoparquet"
+    output:
+        vector=temp("../results/residual_exposure/{asset}/{subregion}.geoparquet")
+    params:
+        protection_dir="../config/design_standards"
+    script:
+        "../scripts/exposure/subtract_protection.py"
+
 ruleorder: intersect_subregion > intersect_all_subregions_for_asset

@@ -1,4 +1,6 @@
-# %% handling for unknown asset_types
+"""
+NOTE: refactor this so not repeatedly doing IO with the same csvs.
+"""
 import os
 import pandas as pd
 import geopandas as gpd
@@ -35,15 +37,15 @@ def main(input, output, params):
             if asset_type in rehab_cost_df.index:
                 for prefix in ["min", "mean", "max"]:
                     cost: float = rehab_cost_df.loc[asset_type, f"{prefix}_cost_usd"]
-                    unit: str = rehab_cost_df.loc[asset_type, "unit_type"]
-                    logging.info(f"Rehabilitation cost per {unit} for {asset_type} from {hazard} hazard: {cost}")
+                    unit_type: str = rehab_cost_df.loc[asset_type, "unit_type"]
+                    logging.info(f"Using {prefix} rehabilitation cost per {unit_type} for {asset_type} from {hazard} hazard: {cost}")
 
                     damage_fraction = asset_damages[damage_col]
                     units = asset_damages["unit"]
 
-                    assert asset_damages["unit_type"][0] == unit, \
+                    assert asset_damages["unit_type"].iloc[0] == unit_type, \
                         f"Unit type mismatch for asset type '{asset_type}' in hazard '{hazard}': " \
-                        f"{asset_damages['unit_type'][0]} != {unit}"
+                        f"{asset_damages['unit_type'].unique()} != {unit_type}"
 
                     cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
                     asset_damages[cost_col] = cost * damage_fraction * units

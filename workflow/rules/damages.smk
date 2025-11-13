@@ -8,7 +8,7 @@ rule damage_fractions:
     snakemake --cores 4 ../results/damages/fractions/tza_airports/dar_es_salaam.geoparquet
     """
     input:
-        vector="../results/exposure/{asset}/{subregion}.geoparquet"
+        vector="../results/residual_exposure/{asset}/{subregion}.geoparquet"
     output:
         vector=temp("../results/damages/fractions/{asset}/{subregion}.geoparquet")
     params:
@@ -46,7 +46,6 @@ rule unsplit_final_results:
         "../scripts/assets/unsplit.py"
 
 
-
 def get_all_final_results_for_asset(wildcards):
     asset = wildcards.asset
     assets_dir = Path(f"../results/input/assets/{asset}")
@@ -69,37 +68,38 @@ rule get_all_final_results_for_asset:
         touch("../results/damages/final/{asset}/.all")
 
 
-rule validate_asset_exposure:
-    """
-    snakemake --cores 4 ../results/damages/verified/tza_road/kilimanjaro.done
-    snakemake --cores 4 ../results/damages/verified/tza_airports/dar_es_salaam.done
-    """
-    input:
-        vector="../results/damages/final/{asset}/{subregion}.geoparquet",
-        reference="../results/input/assets/{asset}/{subregion}.geoparquet",
-        hazdir="../results/aligned/hazards"
-    output:
-        touch("../results/damages/verified/{asset}/{subregion}.done")
-    script:
-        "../scripts/exposure/verify_asset_exposure.py"
+# This only works when I'm not using design standards.
+# rule validate_asset_exposure:
+#     """
+#     snakemake --cores 4 ../results/damages/verified/tza_road/kilimanjaro.done
+#     snakemake --cores 4 ../results/damages/verified/tza_airports/dar_es_salaam.done
+#     """
+#     input:
+#         vector="../results/damages/final/{asset}/{subregion}.geoparquet",
+#         reference="../results/input/assets/{asset}/{subregion}.geoparquet",
+#         hazdir="../results/aligned/hazards"
+#     output:
+#         touch("../results/damages/verified/{asset}/{subregion}.done")
+#     script:
+#         "../scripts/exposure/verify_asset_exposure.py"
 
 
-def check_all_assets_validated(wildcards):
-    asset = wildcards.asset
-    assets_dir = Path(f"../results/input/assets/{asset}")
-    subregions = [f.stem for f in assets_dir.glob("*.geoparquet")]
-    return expand(
-        "../results/damages/verified/{asset}/{subregion}.done",
-        asset=asset,
-        subregion=subregions,
-    )
+# def check_all_assets_validated(wildcards):
+#     asset = wildcards.asset
+#     assets_dir = Path(f"../results/input/assets/{asset}")
+#     subregions = [f.stem for f in assets_dir.glob("*.geoparquet")]
+#     return expand(
+#         "../results/damages/verified/{asset}/{subregion}.done",
+#         asset=asset,
+#         subregion=subregions,
+#     )
 
 
-rule validate_all_asset_exposure:
-    """
-    snakemake --cores 4 ../results/damages/verified/tza_airports/.all
-    """
-    input:
-        check_all_assets_validated
-    output:
-        touch("../results/damages/verified/{asset}/.all")
+# rule validate_all_asset_exposure:
+#     """
+#     snakemake --cores 4 ../results/damages/verified/tza_airports/.all
+#     """
+#     input:
+#         check_all_assets_validated
+#     output:
+#         touch("../results/damages/verified/{asset}/.all")
