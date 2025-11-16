@@ -11,4 +11,4 @@ include: "rules/hazards/fathom.smk"
 include: "rules/assets/linestrings.smk"
 include: "rules/assets/polygons.smk"
 
-include: "rules/exposure.smk"
+include: "rules/risk.smk"

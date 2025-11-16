@@ -12,7 +12,7 @@ rule mosaic_fathom:
     snakemake --cores 4 ../results/input/hazards/pluvial_2050_SSP5-8p5_rp00100.tif
     """
     input:
-        zipfile=lambda wildcards: "{path}/input/hazards/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
+        zipfile=lambda wildcards: "{path}/hazards/input/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
             path=INPUTS,
             subcategory=wildcards.SUBCATEGORY,
             epoch=wildcards.EPOCH,
@@ -20,7 +20,7 @@ rule mosaic_fathom:
             rp=int(wildcards.RP)
         )
     output:
-        tiff="../results/input/hazards/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif"
+        tiff="../results/hazards/input/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif"
     shell:
         """
         TEMP_DIR=$(mktemp -d)
@@ -77,7 +77,7 @@ rule all_fathom_scenarios:
     """
     input:
         tiffs = expand(
-            "../results/input/hazards/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
+            "../results/hazards/input/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
             SUBCATEGORY=["pluvial"],
             EPOCH=["2050"],
             SCENARIO=["SSP5-8p5"],
@@ -89,7 +89,7 @@ rule all_fathom_scenarios:
 rule all_fathom_historical:
     input:
         tiffs = expand(
-            "../results/input/hazards/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
+            "../results/hazards/input/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
             SUBCATEGORY=["pluvial", "fluvial", "coastal"],
             EPOCH=["2020"],
             SCENARIO=["historical"],

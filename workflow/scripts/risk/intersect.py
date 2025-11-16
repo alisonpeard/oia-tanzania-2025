@@ -5,8 +5,8 @@ import pandas as pd
 import geopandas as gpd
 from scipy.interpolate import interp1d
 
-import linestrings
-import polygons
+from utils import linestrings
+from utils import polygons
 
 
 ASSET_COLS = ["id", "asset_type", "geometry"]

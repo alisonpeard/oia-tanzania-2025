@@ -3,14 +3,14 @@ import os
 
 def get_all_input_hazards(wildcards):
     """Input function that runs at execution time"""
-    hazards_dir = Path("../results/input/hazards")
+    hazards_dir = Path("../results/hazards/input")
     hazards = []
     for root, dirs, files in os.walk(hazards_dir):
         for file in files:
             if file.endswith(".tif"):
                 hazards.append(os.path.join(root, file))
     if len(hazards) == 0:
-        raise ValueError("No input hazard rasters found in ../results/input/hazards")
+        raise ValueError("No input hazard rasters found in ../results/hazards/input")
     return hazards
 
     
@@ -24,7 +24,7 @@ rule align_hazard_rasters:
     input:
         rasters=get_all_input_hazards,
     output:
-        outdir=directory("../results/aligned/hazards")
+        outdir=directory("../results/hazards/aligned")
     script:
         "../scripts/hazards/align_rasters.py"
         
