@@ -22,11 +22,6 @@ def undo_subregion_formatting(subregion_formatted:str) -> str:
     return subregion
 
 
-def format_asset_type(asset_type:str, prefix:str) -> str:
-    # asset_type = prefix + "_" + asset_type
-    return asset_type
-
-
 def calculate_overlap(row, admin:dict):
     return row.geometry.intersection(
         admin[row["subregion"]]
@@ -86,9 +81,8 @@ def main(input, output, params):
 
         edges_subregion = edges[edges["subregion"] == subregion].copy()
         edges_subregion = edges_subregion.drop(columns=["index_right", "subregion"])
-        edges_subregion["asset_type"] = edges_subregion["asset_type"].apply(
-            format_asset_type, prefix=params.asset_type
-        )
+        assert "asset_type" in edges_subregion.columns, \
+            "All assets must have an asset_type column."
 
         if len(edges_subregion) == 0:
             skipped.append(subregion)
