@@ -5,11 +5,10 @@ configfile: "config.yaml"
 INPUTS = config["inputs"]
 ADMIN_LEVEL = config["admin_level"]
 
-include: "rules/hazards.smk"
+include: "rules/hazards/general.smk"
 include: "rules/hazards/fathom.smk"
 
 include: "rules/assets/linestrings.smk"
 include: "rules/assets/polygons.smk"
 
 include: "rules/exposure.smk"
-include: "rules/damages.smk"

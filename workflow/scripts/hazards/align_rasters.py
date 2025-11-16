@@ -11,6 +11,9 @@ def main(input, output, params):
     xmax, ymax = float('-inf'), float('-inf')
     
     print("Analysing input rasters...")
+    print(f"{input.rasters=}")
+    # rasters = os.listdir(input.rasters)
+    # rasters = [f for f in rasters if f.endswith('.tif')]
     for raster_path in input.rasters:
         ds = gdal.Open(raster_path)
         gt = ds.GetGeoTransform()

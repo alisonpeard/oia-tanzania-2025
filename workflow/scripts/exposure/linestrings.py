@@ -1,0 +1,165 @@
+import logging
+import os
+import pandas as pd
+import geopandas as gpd
+from tqdm import tqdm
+import snail.intersection as snint
+from pyproj import Geod
+import rasterio
+from pathlib import Path
+
+
+def get_hazard_from_colname(hazcol):
+    return hazcol.split("_")[0].split('-')[1]
+
+
+def process_raster_grid(raster_files:list[str], verify_consistency=False) -> snint.GridDefinition:
+    grid = snint.GridDefinition.from_raster(raster_files[0])
+    logging.info(f"{grid=}")
+
+    if len(raster_files) > 1 & verify_consistency:
+        # Check all raster files use the same grid
+        logging.info("Checking raster grid consistency")
+        for raster_path in raster_files[1:]:
+            other_grid = snint.GridDefinition.from_raster(raster_path)
+            if other_grid != grid:
+                raise AttributeError(
+                    (
+                        f"Raster attribute mismatch in file {raster_path}:\n"
+                        f"Height: expected={grid.height}; actual={other_grid.height}\n"
+                        f"Width: expected={grid.width}; actual={other_grid.width}\n"
+                        f"Transform equal? {other_grid.transform == grid.transform}\n"
+                        f"Transform expected= {grid.transform}\n"
+                        f"Transform actual= {other_grid.transform}\n"
+                        f"CRS equal? {other_grid.crs == grid.crs}"
+                    )
+                )
+    
+    return grid
+
+
+def make_raster_basenames(raster_files):
+    raster_basenames = []
+    for raster_path in raster_files:
+        basename = Path(raster_path).stem  # Gets filename without extension
+        raster_basenames.append(basename)
+    return raster_basenames
+
+
+def copy_raster_values(vector_splits:gpd.GeoDataFrame, raster_files:list[str]) -> gpd.GeoDataFrame:
+    """
+    N.B. this loop is the heavy lifting of this script
+    it reads hazard intensity values len(raster_files) * len(vector_splits) times
+    """
+    raster_basenames = make_raster_basenames(raster_files)
+    logging.info("Adding raster values to split geometries")
+
+    # to prevent a fragmented dataframe (and a memory explosion), add series to a dict
+    # and then concat afterwards -- do not append to an existing dataframe
+    raster_data: dict[str, pd.Series] = {}
+
+    for i in tqdm(range(len(raster_files))):
+        colname = f"hazard-{raster_basenames[i]}"
+        with rasterio.open(raster_files[i]) as src:
+            data = src.read(1, masked=True)
+            raster_data[colname] = snint.get_raster_values_for_splits(
+                vector_splits, data, index_i="raster_i", index_j="raster_j"
+            )
+
+    raster_data = pd.DataFrame(raster_data)
+    vector_splits = pd.concat([vector_splits, raster_data], axis="columns")
+    assert len(raster_data) == len(vector_splits)
+
+    return vector_splits
+
+
+
+def unsplit(vector, vector_ref, hazard_cols, damage_cols, cost_cols):
+    risk_cols = hazard_cols + damage_cols + cost_cols
+    meta_cols =  ["asset_type", "unit", "unit_type"]
+
+    agg_func = {col: "max" for col in hazard_cols} | \
+                {col: "mean" for col in damage_cols} | \
+                    {col: "sum" for col in cost_cols}
+    meta_agg = {"unit": "sum", 'unit_type': "first", "asset_type": "first"}
+    agg_func.update(meta_agg)
+
+    vector = vector[["id"] + meta_cols + risk_cols].copy()
+    vector_grouped = vector.groupby("id").agg(agg_func).sort_index()
+
+    vector_ref = vector_ref.set_index("id").sort_index()
+    assert vector_ref.index.is_unique
+    assert vector_grouped.index.equals(vector_ref.index), \
+        "Indices do not match after dissolving"
+
+    vector_grouped = vector_grouped.join(vector_ref[["geometry"]])
+    vector_grouped = gpd.GeoDataFrame(
+        vector_grouped, geometry="geometry", crs="EPSG:4326"
+    )
+    return vector_grouped
+
+
+def intersect(
+        vector:gpd.GeoDataFrame, rasters:list[str],
+        damage_curves:dict, rehab_costs:dict
+    ) -> gpd.GeoDataFrame:
+
+    grid = process_raster_grid(rasters)
+
+    logging.info("Splitting edges...")
+    vector = vector.reset_index(drop=True)
+    vector_splits = snint.split_linestrings(
+        vector, grid
+    )
+    logging.info("Split %d edges into %d pieces", len(vector), len(vector_splits))
+
+    logging.info("Finding indices...")
+    vector_splits = snint.apply_indices(
+        vector_splits, grid, index_i="raster_i", index_j="raster_j"
+    )
+
+    logging.info("Calculating lengths of split segments...")
+    tqdm.pandas(desc="Calculating linestring lengths")
+    geod = Geod(ellps="WGS84")
+    vector_splits["unit"] = (
+        vector_splits.geometry.progress_apply(geod.geometry_length)
+    )
+    vector_splits["unit_type"] = "m"
+    vector_splits = copy_raster_values(vector_splits, rasters)
+
+    asset_types = list(vector_splits["asset_type"].unique())
+    hazard_cols = [f"hazard-{Path(r).stem}" for r in rasters]
+
+    asset_type_damages = []
+    damage_cols = set()
+    cost_cols = set()
+
+    for asset_type in asset_types:
+        vector_asset = vector_splits[vector_splits["asset_type"] == asset_type].copy()
+        for hazard_col in hazard_cols:
+            hazard = get_hazard_from_colname(hazard_col)
+            
+            for suffix in ["mean", "min", "max"]:
+                damage_function = damage_curves[(hazard, asset_type)][suffix]
+                damage_col = hazard_col.replace("hazard-", "damage-") + "_" + suffix
+                vector_asset[damage_col] = vector_asset[hazard_col].apply(damage_function)
+
+                damage_cols.add(damage_col)
+
+                for prefix in ["min", "mean", "max"]:
+                    cost = rehab_costs[hazard].loc[asset_type, f"{prefix}_cost_usd"]
+                    cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
+                    vector_asset[cost_col] = cost * vector_asset[damage_col] * vector_asset["unit"]
+
+                    cost_cols.add(cost_col)
+        
+        asset_type_damages.append(vector_asset)
+    
+    vector_splits = pd.concat(asset_type_damages, axis=0)
+
+    logging.info("Dissolving split geometries back to original...")
+    vector = unsplit(
+        vector_splits, vector,
+        hazard_cols, list(damage_cols), list(cost_cols)
+    )
+    return vector

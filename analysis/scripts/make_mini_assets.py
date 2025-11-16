@@ -10,6 +10,13 @@ from collections import Counter
 with open("../../workflow/config.yaml") as f:
     cfg = yaml.safe_load(f)
 
+
+# assets = [
+#     "asphalt_concrete_bad",
+#     "asphalt_concrete_fair",
+
+# ]
+
 input_path = cfg["inputs"]
 damage_path = os.path.join("config", "damage_curves")
 cost_path = os.path.join("config", "rehab_costs")
@@ -26,10 +33,10 @@ for asset_file in asset_files:
     asset = gpd.read_parquet(os.path.join(asset_dir, asset_file)) 
     asset_types = asset["asset_type"].unique()
     type_counts = Counter(asset["asset_type"])
-    type_counts = dict(sorted(type_counts.items(), key=lambda item: item[1], reverse=True))
-    asset_type = next(iter(asset_types))
+    # type_counts = dict(sorted(type_counts.items(), key=lambda item: item[1], reverse=True))
+    # asset_type = next(iter(asset_types))
     print(f"  Taking asset type {asset_type} with {type_counts[asset_type]} records")
-    mini_asset = asset[asset["asset_type"] == asset_type]
+    mini_asset = asset[asset["asset_type"] in asset_type]
     mini_asset.to_parquet(os.path.join(mini_asset_dir,  asset_file))
 
 # %%
