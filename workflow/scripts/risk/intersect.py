@@ -5,6 +5,7 @@ import pandas as pd
 import geopandas as gpd
 from scipy.interpolate import interp1d
 
+from utils import points
 from utils import linestrings
 from utils import polygons
 
@@ -94,7 +95,7 @@ def main(input, output, params):
     rehab_costs = prepare_rehab_costs(params.rehab_cost_dir, hazards)
 
     if geom_type in ["Point", "MultiPoint"]:
-        raise NotImplementedError("Point geometry processing not implemented yet.")
+        vector = points.intersect(vector, rasters, damage_curves, rehab_costs)
     elif geom_type in ["LineString", "MultiLineString"]:
         vector = linestrings.intersect(vector, rasters, damage_curves, rehab_costs)
     elif geom_type in ["Polygon", "MultiPolygon"]:

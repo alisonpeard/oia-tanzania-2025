@@ -6,6 +6,7 @@ rule intersect_subregion:
     snakemake --cores 4 ../results/risk/unprotected/tza_road/dar_es_salaam.geoparquet
     snakemake --cores 4 ../results/risk/unprotected/tza_road/kilimanjaro.geoparquet
     snakemake --cores 4 ../results/risk/unprotected/tza_airports/dar_es_salaam.geoparquet
+    snakemake --cores 4 ../results/risk/unprotected/tza_roads_bridges_and_culverts/dar_es_salaam.geoparquet
     """
     input:
         vector="../results/assets/{asset}/{subregion}.geoparquet",
