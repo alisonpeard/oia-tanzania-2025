@@ -1,22 +1,15 @@
-def format_scenario(scenario):
-    if scenario.startswith("SSP"):
-        return scenario.replace("p", ".").replace("-", "_")
-    elif scenario == "hist":
-        return "historical"
-
-
 rule mosaic_fathom:
     """
-    snakemake --cores 4 ../results/input/hazards/fluvial_2050_SSP2-4p5_rp00020.tif
-    snakemake --cores 4 ../results/input/hazards/pluvial_2050_SSP5-8p5_rp00500.tif
-    snakemake --cores 4 ../results/input/hazards/pluvial_2050_SSP5-8p5_rp00100.tif
+    snakemake --cores 4 ../results/hazards/input/fluvial_2050_ssp245_rp00020.tif
+    snakemake --cores 4 ../results/hazards/input/pluvial_2050_ssp585_rp00500.tif
+    snakemake --cores 4 ../results/hazards/input/pluvial_2050_ssp585_rp00100.tif
     """
     input:
-        zipfile=lambda wildcards: "{path}/hazards/input/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
+        zipfile=lambda wildcards: "{path}/input/hazards/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
             path=INPUTS,
             subcategory=wildcards.SUBCATEGORY,
             epoch=wildcards.EPOCH,
-            scenario=format_scenario(wildcards.SCENARIO),
+            scenario=wildcards.SCENARIO,
             rp=int(wildcards.RP)
         )
     output:
@@ -80,8 +73,7 @@ rule all_fathom_scenarios:
             "../results/hazards/input/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
             SUBCATEGORY=["pluvial"],
             EPOCH=["2050"],
-            SCENARIO=["SSP5-8p5"],
-            # RP=["00005", "00010", "00100", "00200", "00500", "01000"],
+            SCENARIO=["ssp585"],
             RP = ["00010", "00050", "00200", "00500", "01000"]
         )
 
