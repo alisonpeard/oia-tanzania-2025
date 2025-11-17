@@ -37,7 +37,7 @@ def verify_asset_geometries(idx, gdf, ref):
 def verify_asset_exposure(idx, gdf, hazard, hazcol):
     segment = gdf.loc[[idx]]
     x0, y0, x1, y1 = segment.total_bounds
-    hazard = hazard.rio.clip_box(minx=x0, miny=y0, maxx=x1, maxy=y1)
+    hazard = hazard.rio.clip_box(minx=x0, miny=y0, maxx=x1, maxy=y1, allow_one_dimensional_raster=True)
     hazard = raster_to_geodataframe(hazard)
     intersection = gpd.overlay(segment, hazard, how="intersection")
     max_result_value = gdf.loc[idx, hazcol]

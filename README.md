@@ -20,7 +20,7 @@ The outputs geoparquet files in `results/damages/final` for each subregion, with
 - Add EAD calculation code
 - Add point geometry handling
 - Test with cyclone and landslide hazard data
-- Decide whether to create a separate repo for figures (
+- Decide whether to create a separate repo for figures
 
 ## Input data
 
@@ -55,7 +55,16 @@ Use '#' to mark comment lines in the CSV files.
 
 ## Notes on datasets
 
-### Fathom flood data
+Available scenarios for all hazard types.
+
+| Hazard | Epochs | Scenarios | Return periods |
+|--------|--------|-----------|----------------|
+| Fathom | | | |
+| Cyclone | | | |
+| Landslides | | | |
+| Heat | | | |
+
+### Fathom flood data [outdated, need to update]
 
 The Fathom data is provided in 1° rasters, in separate (nested) folders for each flood-driver, time horizon, climate scenario, and return period. Original files are in 1 arc second resolution (~30 m), which is very high and slow, we resample to 3 arc second (~90 m) for processing efficiency.
 
