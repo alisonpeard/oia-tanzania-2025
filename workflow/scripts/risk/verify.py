@@ -47,7 +47,7 @@ def verify_asset_exposure(idx, gdf, hazard, hazcol):
     logging.info(f"Hazard values match. {max_raster_value} (raster) == {max_result_value} (result)")
 
 
-def main(input):
+def main(input, params):
   gdf = gpd.read_parquet(input.vector)
 
   assert gdf.index.name == "id", "GeoDataFrame index must be 'id' column"
@@ -61,7 +61,8 @@ def main(input):
         logging.info("No exposure for this hazard scenario, skipping.")
         continue
 
-    ref = gpd.read_parquet(input.reference).set_index("id")
+    ref_path = os.path.join(input.ref_dir, f"{params.subregion}.geoparquet")
+    ref = gpd.read_parquet(ref_path).set_index("id")
     verify_asset_geometries(idx, gdf, ref)
 
     hazfile = hazcol.replace("hazard-", "") + ".tif"
@@ -76,4 +77,5 @@ if __name__ == "__main__":
     )
 
     input = snakemake.input
-    main(input)
+    params = snakemake.params
+    main(input, params)

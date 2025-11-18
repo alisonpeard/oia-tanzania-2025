@@ -24,13 +24,11 @@ rule intersect_subregion:
 
 
 def get_all_output_files_for_asset(wildcards):
-    geom = wildcards.geom
     asset = wildcards.asset
     assets_dir = Path(f"../results/assets/{asset}")
     subregions = [f.stem for f in assets_dir.glob("*.geoparquet")]
     return expand(
         "../results/risk/protected/{asset}/{subregion}.geoparquet",
-        geom=geom,
         asset=asset,
         subregion=subregions,
     )
@@ -40,7 +38,6 @@ rule intersect_all_subregions_for_asset:
     """
     snakemake --cores 4 ../results/risk/unprotected/tza_roads/.all
     snakemake --cores 4 ../results/risk/unprotected/tza_airports/.all
-    snakemake --cores 4 ../results/risk/unprotected/tza_roads/kilimanjaro.geoparquet
     """
     input:
         get_all_output_files_for_asset
@@ -60,8 +57,10 @@ rule validate_asset_exposure:
     """
     input:
         vector="../results/risk/unprotected/{asset}/{subregion}.geoparquet",
-        reference="../results/assets/{asset}/{subregion}.geoparquet",
+        ref_dir="../results/assets/{asset}",
         hazdir="../results/hazards/aligned"
+    params:
+        subregion="{subregion}",
     output:
         touch("../results/risk/verified/{asset}/{subregion}.done")
     script:
@@ -81,7 +80,7 @@ def check_all_assets_validated(wildcards):
 
 rule validate_all_asset_exposure:
     """
-    snakemake --cores 4 ../results/risk/verified//tza_airports/.all
+    snakemake --cores 4 ../results/risk/verified/tza_airports/.all
     snakemake --cores 4 ../results/risk/verified/tza_rail/.all
     """
     input:
@@ -104,3 +103,26 @@ rule add_protection_standards:
         protection_dir="../config/design_standards"
     script:
         "../scripts/risk/protect.py"
+
+
+def get_all_protected_files_for_asset(wildcards):
+    asset = wildcards.asset
+    assets_dir = Path(f"../results/assets/{asset}")
+    subregions = [f.stem for f in assets_dir.glob("*.geoparquet")]
+    return expand(
+        "../results/risk/protected/{asset}/{subregion}.geoparquet",
+        asset=asset,
+        subregion=subregions,
+    )
+
+
+rule add_protection_standards_all_subregions_for_asset:
+    """
+    snakemake --cores 4 ../results/risk/protected/tza_roads/.all
+    snakemake --cores 4 ../results/risk/protected/tza_airports/.all
+    snakemake --cores 4 ../results/risk/protected/tza_rail/.all
+    """
+    input:
+        get_all_protected_files_for_asset
+    output:
+        touch("../results/risk/protected/{asset}/.all")
