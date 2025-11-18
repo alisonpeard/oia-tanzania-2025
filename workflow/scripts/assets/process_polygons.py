@@ -7,6 +7,10 @@ from tqdm import tqdm
 
 __all__ = ["format_subregion_name", "undo_subregion_formatting"]
 
+def check_geoms(polys):
+    geom_types = polys.geometry.geom_type.unique().tolist()
+    assert all([geom_type in ["Polygon"] for geom_type in geom_types]), \
+        f"Found unexpected geometry types in edges: {geom_types}."
 
 def format_subregion_name(subregion:str) -> str:
     subregion = subregion.lower()
@@ -65,6 +69,8 @@ def main(input, output, params):
     polys = gpd.read_parquet(input.polys).to_crs(params.local_crs)
     admin = gpd.read_file(input.admin).to_crs(params.local_crs)
     logging.info(f"Using local projection EPSG:{params.local_crs}.")
+
+    check_geoms(polys)
 
     admin = prepare_admin_data(admin)
     polys = intersect_by_overlap(polys, admin)

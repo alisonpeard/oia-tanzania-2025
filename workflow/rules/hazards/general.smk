@@ -26,5 +26,5 @@ rule align_hazard_rasters:
     output:
         outdir=directory("../results/hazards/aligned")
     script:
-        "../scripts/hazards/align_rasters.py"
+        "../../scripts/hazards/align_rasters.py"
         

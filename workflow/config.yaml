@@ -1,4 +1,4 @@
-inputs: "/Users/alison/Local/data/oia-tanzania-2025"
+inputs: "/Users/alison/Local/data/oia-tanzania-2025/input"
 local_crs: 32735
 country: "tanzania"
 admin_level: 1

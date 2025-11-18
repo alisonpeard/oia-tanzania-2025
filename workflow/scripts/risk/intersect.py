@@ -81,8 +81,8 @@ def get_rasters(hazard_dir:list[str]) -> list[str]:
 
 
 def main(input, output, params):
-
-    vector = gpd.read_parquet(input.vector, columns=ASSET_COLS)
+    asset_file = os.path.join(input.asset_dir, f"{params.subregion}.geoparquet")
+    vector = gpd.read_parquet(asset_file, columns=ASSET_COLS)
     geom_type = check_geoms(vector)
 
     rasters = get_rasters(input.hazard_dir)
