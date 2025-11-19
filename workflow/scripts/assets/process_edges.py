@@ -1,4 +1,3 @@
-# %%
 import os
 import geopandas as gpd
 import logging
@@ -6,6 +5,13 @@ from tqdm import tqdm
 
 
 __all__ = ["format_subregion_name", "undo_subregion_formatting"]
+
+
+def load_subregions(path):
+    print(f"Loading subregions from: {path}.")
+    with open(path, "r") as f:
+        subregions = [line.strip() for line in f.readlines()]
+    return subregions
 
 
 def check_geoms(edges):
@@ -34,10 +40,17 @@ def calculate_overlap(row, admin:dict):
     ).length
 
 
-def prepare_admin_data(admin):
+def prepare_admin_data(admin, subregions):
     admin = admin[["shapeName", "geometry"]].copy()
     admin.rename(columns={"shapeName": "subregion"}, inplace=True)
     admin["subregion"] = admin["subregion"].apply(format_subregion_name)
+
+    print("Checking admin subregions against expected list.")
+    admin_subregions = set(admin["subregion"].unique().tolist())
+    missing_subregions = admin_subregions - set(subregions)
+    assert len(missing_subregions) == 0, \
+        f"Admin data contains unexpected subregions: {missing_subregions}."
+
     admin = admin.dissolve(by="subregion", as_index=False)
     return admin
 
@@ -60,6 +73,7 @@ def intersect_by_overlap(edges, admin):
     edges_with_admin["overlap"] = edges_with_admin.progress_apply(
         calculate_overlap, axis=1, admin=admin_dict
     )
+    edges_with_admin = edges_with_admin[edges_with_admin["overlap"] > 0]
     edges_with_subregion = edges_with_admin.sort_values("overlap", ascending=False)
     edges_with_subregion = edges_with_subregion.drop_duplicates(
         subset=[col for col in edges.columns if col != 'geometry'], keep="first"
@@ -70,20 +84,21 @@ def intersect_by_overlap(edges, admin):
 def main(input, output, params):
     edges = gpd.read_parquet(input.edges).to_crs(params.local_crs)
     admin = gpd.read_file(input.admin).to_crs(params.local_crs)
+    subregions = load_subregions(input.subregions)
     logging.info(f"Using local projection EPSG:{params.local_crs}.")
 
     check_geoms(edges)
 
-    admin = prepare_admin_data(admin)
+    admin = prepare_admin_data(admin, subregions)
     edges = intersect_by_overlap(edges, admin)
 
-    subregions = admin["subregion"].unique().tolist()
+    # subregions = admin["subregion"].unique().tolist()
     logging.info(f"Found {len(subregions)} subregions.")
 
     os.makedirs(output.edgedir, exist_ok=True)
     logging.info(f"Saving subregions to: {output.edgedir}.")
 
-    skipped = []
+    empty = []
     for subregion in (pbar := tqdm(subregions)):
         pbar.set_postfix({'subregion': subregion})
 
@@ -93,8 +108,7 @@ def main(input, output, params):
             "All assets must have an asset_type column."
 
         if len(edges_subregion) == 0:
-            skipped.append(subregion)
-            continue
+            empty.append(subregion)
 
         edges_subregion = edges_subregion.to_crs("EPSG:4326")
         edges_subregion.to_parquet(
@@ -102,8 +116,8 @@ def main(input, output, params):
             index=False
         )
     
-    if len(skipped) > 0:
-        logging.warning(f"No edges found for subregions: {*skipped,}")
+    if len(empty) > 0:
+        logging.warning(f"No edges found for subregions: {*empty,}")
     logging.info("Done. Saved output with EPSG:4326 projection.")
 
 
@@ -117,4 +131,3 @@ if __name__ == "__main__":
     output = snakemake.output
     params = snakemake.params
     main(input, output, params)
-# %%

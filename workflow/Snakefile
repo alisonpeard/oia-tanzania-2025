@@ -5,8 +5,6 @@ configfile: "config.yaml"
 INPUTS = config["inputs"]
 ADMIN_LEVEL = config["admin_level"]
 
-include: "rules/hazards/general.smk"
-include: "rules/hazards/fathom.smk"
-include: "rules/hazards/landslides.smk"
 include: "rules/assets.smk"
+include: "rules/hazards/general.smk"
 include: "rules/risk.smk"

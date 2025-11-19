@@ -50,6 +50,10 @@ def verify_asset_exposure(idx, gdf, hazard, hazcol):
 def main(input, params):
   gdf = gpd.read_parquet(input.vector)
 
+  if gdf.empty:
+      logging.info("Input GeoDataFrame is empty, nothing to verify.")
+      return
+
   assert gdf.index.name == "id", "GeoDataFrame index must be 'id' column"
 
   hazcols = [col for col in gdf.columns if col.startswith("hazard-")]

@@ -14,6 +14,11 @@ def get_hazard_from_colname(hazcol):
 def main(input, output, params):
     exposure = gpd.read_parquet(input.vector)
 
+    if exposure.empty:
+        exposure.to_parquet(output.vector)
+        logging.info("Input exposure file is empty, saved empty output.")
+        return
+
     asset_types = list(exposure["asset_type"].unique())
     hazard_cols = [col for col in exposure.columns if col.startswith("hazard-")]
 

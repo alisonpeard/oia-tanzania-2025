@@ -7,6 +7,14 @@ from tqdm import tqdm
 
 __all__ = ["format_subregion_name", "undo_subregion_formatting"]
 
+
+def load_subregions(path):
+    print(f"Loading subregions from: {path}.")
+    with open(path, "r") as f:
+        subregions = [line.strip() for line in f.readlines()]
+    return subregions
+
+
 def check_geoms(polys):
     geom_types = polys.geometry.geom_type.unique().tolist()
     assert all([geom_type in ["Polygon"] for geom_type in geom_types]), \
@@ -32,10 +40,17 @@ def calculate_overlap(row, admin:dict):
     ).area
 
 
-def prepare_admin_data(admin):
+def prepare_admin_data(admin, subregions):
     admin = admin[["shapeName", "geometry"]].copy()
     admin.rename(columns={"shapeName": "subregion"}, inplace=True)
     admin["subregion"] = admin["subregion"].apply(format_subregion_name)
+
+    print("Checking admin subregions against expected list.")
+    admin_subregions = set(admin["subregion"].unique().tolist())
+    missing_subregions = admin_subregions - set(subregions)
+    assert len(missing_subregions) == 0, \
+        f"Admin data contains unexpected subregions: {missing_subregions}."
+    
     admin = admin.dissolve(by="subregion", as_index=False)
     return admin
 
@@ -68,11 +83,12 @@ def intersect_by_overlap(polys, admin):
 def main(input, output, params):
     polys = gpd.read_parquet(input.polys).to_crs(params.local_crs)
     admin = gpd.read_file(input.admin).to_crs(params.local_crs)
+    subregions = load_subregions(input.subregions)
     logging.info(f"Using local projection EPSG:{params.local_crs}.")
 
     check_geoms(polys)
 
-    admin = prepare_admin_data(admin)
+    admin = prepare_admin_data(admin, subregions)
     polys = intersect_by_overlap(polys, admin)
 
     subregions = admin["subregion"].unique().tolist()
@@ -81,7 +97,7 @@ def main(input, output, params):
     os.makedirs(output.polydir, exist_ok=True)
     logging.info(f"Saving subregions to: {output.polydir}.")
 
-    skipped = []
+    empty = []
     for subregion in (pbar := tqdm(subregions)):
         pbar.set_postfix({'subregion': subregion})
 
@@ -91,8 +107,8 @@ def main(input, output, params):
             "All assets must have an asset_type column."
 
         if len(polys_subregion) == 0:
-            skipped.append(subregion)
-            continue
+            empty.append(subregion)
+        #     continue
 
         polys_subregion = polys_subregion.to_crs("EPSG:4326")
         polys_subregion.to_parquet(
@@ -100,8 +116,8 @@ def main(input, output, params):
             index=False
         )
     
-    if len(skipped) > 0:
-        logging.warning(f"No polygons found for subregions: {*skipped,}")
+    if len(empty) > 0:
+        logging.warning(f"No polygons found for subregions: {*empty,}")
     logging.info("Done. Saved output with EPSG:4326 projection.")
 
 

@@ -1,5 +1,4 @@
 import logging
-import os
 import pandas as pd
 import geopandas as gpd
 from tqdm import tqdm
@@ -7,6 +6,7 @@ import snail.intersection as snint
 from pyproj import Geod
 import rasterio
 from pathlib import Path
+from warnings import warn
 
 
 def get_hazard_from_colname(hazcol):
@@ -88,9 +88,9 @@ def unsplit(vector, vector_ref, hazard_cols, damage_cols, cost_cols):
     vector_grouped = vector.groupby("id").agg(agg_func).sort_index()
 
     vector_ref = vector_ref.set_index("id").sort_index()
+
     assert vector_ref.index.is_unique
-    assert vector_grouped.index.equals(vector_ref.index), \
-        "Indices do not match after dissolving"
+    assert vector_grouped.index.equals(vector_ref.index)
 
     vector_grouped = vector_grouped.join(vector_ref[["geometry"]])
     vector_grouped = gpd.GeoDataFrame(
@@ -108,6 +108,7 @@ def intersect(
 
     logging.info("Splitting edges...")
     vector = vector.reset_index(drop=True)
+
     vector_splits = snint.split_linestrings(
         vector, grid
     )

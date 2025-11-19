@@ -8,6 +8,12 @@ from tqdm import tqdm
 __all__ = ["format_subregion_name", "undo_subregion_formatting"]
 
 
+def load_subregions(path):
+    print(f"Loading subregions from: {path}.")
+    with open(path, "r") as f:
+        subregions = [line.strip() for line in f.readlines()]
+    return subregions
+
 def check_geoms(points):
     geom_types = points.geometry.geom_type.unique().tolist()
     assert all([geom_type in ["Point"] for geom_type in geom_types]), \
@@ -27,11 +33,17 @@ def undo_subregion_formatting(subregion_formatted:str) -> str:
     return subregion
 
 
-def prepare_admin_data(admin):
+def prepare_admin_data(admin, subregions):
     admin = admin[["shapeName", "geometry"]].copy()
     admin.rename(columns={"shapeName": "subregion"}, inplace=True)
     admin["subregion"] = admin["subregion"].apply(format_subregion_name)
     admin = admin.dissolve(by="subregion", as_index=False)
+
+    print("Checking admin subregions against expected list.")
+    admin_subregions = set(admin["subregion"].unique().tolist())
+    missing_subregions = admin_subregions - set(subregions)
+    assert len(missing_subregions) == 0, \
+        f"Admin data contains unexpected subregions: {missing_subregions}."
     return admin
 
 
@@ -44,11 +56,12 @@ def check_for_duplicates(gdf, column="id"):
 def main(input, output, params):
     points = gpd.read_parquet(input.points).to_crs(params.local_crs)
     admin = gpd.read_file(input.admin).to_crs(params.local_crs)
+    subregions = load_subregions(input.subregions)
     logging.info(f"Using local projection EPSG:{params.local_crs}.")
 
     check_geoms(points)
 
-    admin = prepare_admin_data(admin)
+    admin = prepare_admin_data(admin, subregions)
 
     points = gpd.sjoin(
         points, admin, how="inner", predicate="intersects"
@@ -60,7 +73,7 @@ def main(input, output, params):
     os.makedirs(output.pointdir, exist_ok=True)
     logging.info(f"Saving subregions to: {output.pointdir}.")
 
-    skipped = []
+    empty = []
     for subregion in (pbar := tqdm(subregions)):
         pbar.set_postfix({'subregion': subregion})
 
@@ -70,8 +83,8 @@ def main(input, output, params):
             "All assets must have an asset_type column."
 
         if len(points_subregion) == 0:
-            skipped.append(subregion)
-            continue
+            empty.append(subregion)
+            # continue
 
         points_subregion = points_subregion.to_crs("EPSG:4326")
         points_subregion.to_parquet(
@@ -79,8 +92,8 @@ def main(input, output, params):
             index=False
         )
     
-    if len(skipped) > 0:
-        logging.warning(f"No points found for subregions: {*skipped,}")
+    if len(empty) > 0:
+        logging.warning(f"No points found for subregions: {*empty,}")
     logging.info("Done. Saved output with EPSG:4326 projection.")
 
 
