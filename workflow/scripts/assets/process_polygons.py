@@ -73,6 +73,7 @@ def intersect_by_overlap(polys, admin):
     polys_with_admin["overlap"] = polys_with_admin.progress_apply(
         calculate_overlap, axis=1, admin=admin_dict
     )
+    polys_with_admin = polys_with_admin[polys_with_admin["overlap"] > 0]
     polys_with_subregion = polys_with_admin.sort_values("overlap", ascending=False)
     polys_with_subregion = polys_with_subregion.drop_duplicates(
         subset=[col for col in polys.columns if col != 'geometry'], keep="first"
@@ -108,7 +109,6 @@ def main(input, output, params):
 
         if len(polys_subregion) == 0:
             empty.append(subregion)
-        #     continue
 
         polys_subregion = polys_subregion.to_crs("EPSG:4326")
         polys_subregion.to_parquet(
