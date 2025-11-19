@@ -3,7 +3,7 @@ checkpoint determine_subregions:
     snakemake --cores 1 ../results/assets/subregions.txt
     """
     input:
-        subregions=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg"
+        subregions=f"{INPUTS}/admin/tza_admin_{ADMIN_LEVEL}.gpkg"
     output:
         subregions="../results/assets/subregions.txt",
     run:
@@ -70,103 +70,3 @@ rule process_polygons:
         local_crs=config["local_crs"]
     script:
         "../scripts/assets/process_polygons.py"
-
-
-# rule process_tza_roads:
-#     """
-#     snakemake --cores 4 ../results/assets/tza_roads
-#     """
-#     input:
-#         edges=f"{INPUTS}/assets/tza_roads_edges.parquet",
-#         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
-#         subregions="../results/assets/subregions.txt"
-#     output:
-#         # edgedir=directory("../results/assets/tza_roads"),
-#         edges=expand(
-#             "../results/assets/tza_roads/{subregion}.geoparquet",
-#             subregion=load_subregion_list()
-#         )
-#     params:
-#         local_crs=config["local_crs"]
-#     script:
-#         "../scripts/assets/process_edges.py"
-
-
-# rule process_tza_railway:
-#     """
-#     snakemake --cores 4 ../results/assets/tza_railway
-#     """
-#     input:
-#         edges=f"{INPUTS}/assets/tza_railway_edges.parquet",
-#         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
-#         subregions="../results/assets/subregions.txt"
-#     output:
-#         edgedir=directory("../results/assets/tza_railway")
-#     params:
-#         local_crs=config["local_crs"]
-#     script:
-#         "../scripts/assets/process_edges.py"
-
-
-# rule process_tza_airports:
-#     """
-#     snakemake --cores 4 ../results/assets/tza_airports
-#     """
-#     input:
-#         polys=f"{INPUTS}/assets/tza_airports_polygons.parquet",
-#         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
-#         subregions="../results/assets/subregions.txt"
-#     output:
-#         polydir=directory("../results/assets/tza_airports"),
-#     params:
-#         local_crs=config["local_crs"]
-#     script:
-#         "../scripts/assets/process_polygons.py"
-
-
-# rule process_tza_iww_ports:
-#     """
-#     snakemake --cores 4 ../results/assets/tza_iww_ports
-#     """
-#     input:
-#         points=f"{INPUTS}/assets/tza_iww_ports_polygons.parquet",
-#         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
-#         subregions="../results/assets/subregions.txt"
-#     output:
-#         pointdir=directory("../results/assets/tza_iww_ports"),
-#     params:
-#         local_crs=config["local_crs"]
-#     script:
-#         "../scripts/assets/process_polygons.py"
-
-
-# rule process_tza_maritime_ports:
-#     """
-#     snakemake --cores 4 ../results/assets/tza_maritime_ports
-#     """
-#     input:
-#         polys=f"{INPUTS}/assets/tza_maritime_ports_polygons.parquet",
-#         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
-#         subregions="../results/assets/subregions.txt"
-#     output:
-#         polydir=directory("../results/assets/tza_maritime_ports"),
-#     params:
-#         local_crs=config["local_crs"]
-#     script:
-#         "../scripts/assets/process_polygons.py"
-
-
-# rule process_roads_bridges_and_culverts:
-#     """
-#     snakemake --cores 4 ../results/assets/tza_roads_bridges_and_culverts
-#     """
-#     input:
-#         points=f"{INPUTS}/assets/tza_roads_bridges_and_culverts_nodes.parquet",
-#         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
-#         subregions="../results/assets/subregions.txt"
-#     output:
-#         nodedir=directory("../results/assets/tza_roads_bridges_and_culverts"),
-#     params:
-#         local_crs=config["local_crs"]
-#     script:
-#         "../scripts/assets/process_nodes.py"

@@ -1,15 +1,31 @@
+## To do
+
+- Tidy README
+- Add EAD calculation code
+- Test with cyclone and landslide hazard data
+- Add some basic figures
+
 ## Quickstart
 
-Clone this repository
+Clone the repository:
+
 ```bash
 git clone git@github.com:alisonpeard/oia-tanzania-2025.git
 ```
 
 Make a conda environment from the provided `environment.yaml` file:
+
 ```bash
 conda env create -f environment.yaml
 conda activate oia-tanzania-2025
 ```
+
+
+---
+
+## Clean up below here
+
+Set up input data as described in the [Input data](#input-data) section below and set up configuration data as described in the [Config data](#config-data) section below.
 
 
 The following code will intersect an asset (vector in `results/input/assets`) with all hazard scenarios (all rasters in `results/input/hazards/`)
@@ -27,23 +43,77 @@ The outputs geoparquet files in `results/damages/final` for each subregion, with
 |-----|--------------------|--------------------|------------------|----------|----------|----------|
 | ... | float32            | float32            | float32          | float32 | str |  geometry |
 
-## To do
 
-- Add EAD calculation code
-- Add point geometry handling
-- Test with cyclone and landslide hazard data
-- Decide whether to create a separate repo for figures
+
+## Config data
 
 ## Input data
+
+In `config.yaml`, set a key to point to your local folder for input data, e.g.,
+
+```yaml
+inputs: /path/to/your/local/inputs
+```
+
+### Admin boundaries
+
+Admin boundaries should be placed in `results/input/admin` with name format:
+
+```
+{country}_admin_{level}.gpkg
+```
+
+where:
+- `country`: country code, e.g., `tza`
+- `level`: admin level, e.g., `00`, `01`, `02`
+
+
+### Assets
+
+Assets should be placed in `results/input/assets` with name format:
+
+```
+`/results/input/assets/{geom}/{asset}/{subregion}.geoparquet`
+```
+where:
+- `geom`: geometry type, e.g., `nodes`, `edges`, `polygon`
+- `asset`: asset type, e.g., `tza_airports`, `tza_railway`
+- `subregion`: subregion name from admin file, e.g., `dar_es_salaam`
+
+Scripts and rules to process raw asset data into this format can be found in `rules/assets.smk` and `analysis/scripts/process_assets/`.
+
+
+### Hazards
+
+Hazards should be placed in `results/hazards/input` with name format:
+
+```
+{hazard}_{epoch}_{scenario}_rp{rp}.tif
+```
+
+where:
+
+- `hazard`: hazard name (e.g., `pluvial`, `cyclone`). Should match the hazard used in damage curves and rehabilitation costs.
+- `epoch`: time horizon (e.g., `2020`, `2050`, `2080`)
+- `scenario`: climate scenario (e.g., `historical`, `ssp245`, `ssp585`)
+- `rp`: return period (e.g., `00010`, `00050`, `00100`).
+
+Hazard rasters should have WGS84 projection and have proper `NoData` values defined.
+
+If you have hazards stored in your local inputs folder in a different format, you can create rules to process them into the standardised format in `results/input/hazards`. For example, to process Fathom flood data, see the `rules/hazards/fathom.smk` file.
+
+These rules should be run before the main damage estimation workflow. For example, to process all historical Fathom flood data, run:
+
+```bash
+snakemake --cores 4 --rerun-incomplete -- fathom_all_historical
+```
+
+---
 
 Store all input data somewhere local and set `inputs` in `config.yaml` to point to that location. For each new hazard or asset dataset, create a rule and script to process it into the standardised format in `results/input` and place them in the `hazards` or `assets` folders respectively. It doesn't matter how these are coded as long as their outputs have the correct format and location for the workflow. Processing can also be done externally, and the files simply placed in the correct location in `results/input`.
 
 Data stored in `results/input` should have the following format:
 
-| Data type       | Format       | Location                                      |
-|-----------------|--------------|-----------------------------------------------|
-| Hazard     | GeoTIFF      | `/results/input/hazards/{hazard}/{subcategory}/{epoch}/{scenario}/rp{rp}.tif` |
-| Assets         | GeoParquet   | `/results/input/assets/{asset}/{subregion}.geoparquet` |
 
 The `{hazard}` wildcard must match the hazard names used to classify damage curves and rehabilitation costs. Asset files have the following requirements:
 - Have a single geometry type per asset, e.g., LineString, Polygon, Point (no MultiLineStrings)
