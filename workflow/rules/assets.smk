@@ -27,7 +27,7 @@ rule process_edges:
     snakemake --cores 4 ../results/assets/edges/tza_railway
     """
     input:
-        edges=f"{INPUTS}/assets/geoparquets/{{asset}}_edges.parquet",
+        edges=f"{INPUTS}/assets/{{asset}}_edges.parquet",
         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
         subregions="../results/assets/subregions.txt"
     output:
@@ -43,7 +43,7 @@ rule process_nodes:
     snakemake --cores 4 ../results/assets/nodes/tza_roads_bridges_and_culverts
     """
     input:
-        points=f"{INPUTS}/assets/geoparquets/{{asset}}_nodes.parquet",
+        points=f"{INPUTS}/assets/{{asset}}_nodes.parquet",
         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
         subregions="../results/assets/subregions.txt"
     output:
@@ -61,7 +61,7 @@ rule process_polygons:
     snakemake --cores 4 ../results/assets/polygons/tza_maritime_ports
     """
     input:
-        polys=f"{INPUTS}/assets/geoparquets/{{asset}}_polygons.parquet",
+        polys=f"{INPUTS}/assets/{{asset}}_polygons.parquet",
         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
         subregions="../results/assets/subregions.txt"
     output:
@@ -77,7 +77,7 @@ rule process_polygons:
 #     snakemake --cores 4 ../results/assets/tza_roads
 #     """
 #     input:
-#         edges=f"{INPUTS}/assets/geoparquets/tza_roads_edges.parquet",
+#         edges=f"{INPUTS}/assets/tza_roads_edges.parquet",
 #         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
 #         subregions="../results/assets/subregions.txt"
 #     output:
@@ -97,7 +97,7 @@ rule process_polygons:
 #     snakemake --cores 4 ../results/assets/tza_railway
 #     """
 #     input:
-#         edges=f"{INPUTS}/assets/geoparquets/tza_railway_edges.parquet",
+#         edges=f"{INPUTS}/assets/tza_railway_edges.parquet",
 #         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
 #         subregions="../results/assets/subregions.txt"
 #     output:
@@ -113,7 +113,7 @@ rule process_polygons:
 #     snakemake --cores 4 ../results/assets/tza_airports
 #     """
 #     input:
-#         polys=f"{INPUTS}/assets/geoparquets/tza_airports_polygons.parquet",
+#         polys=f"{INPUTS}/assets/tza_airports_polygons.parquet",
 #         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
 #         subregions="../results/assets/subregions.txt"
 #     output:
@@ -129,7 +129,7 @@ rule process_polygons:
 #     snakemake --cores 4 ../results/assets/tza_iww_ports
 #     """
 #     input:
-#         points=f"{INPUTS}/assets/geoparquets/tza_iww_ports_polygons.parquet",
+#         points=f"{INPUTS}/assets/tza_iww_ports_polygons.parquet",
 #         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
 #         subregions="../results/assets/subregions.txt"
 #     output:
@@ -145,7 +145,7 @@ rule process_polygons:
 #     snakemake --cores 4 ../results/assets/tza_maritime_ports
 #     """
 #     input:
-#         polys=f"{INPUTS}/assets/geoparquets/tza_maritime_ports_polygons.parquet",
+#         polys=f"{INPUTS}/assets/tza_maritime_ports_polygons.parquet",
 #         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
 #         subregions="../results/assets/subregions.txt"
 #     output:
@@ -161,7 +161,7 @@ rule process_polygons:
 #     snakemake --cores 4 ../results/assets/tza_roads_bridges_and_culverts
 #     """
 #     input:
-#         points=f"{INPUTS}/assets/geoparquets/tza_roads_bridges_and_culverts_nodes.parquet",
+#         points=f"{INPUTS}/assets/tza_roads_bridges_and_culverts_nodes.parquet",
 #         admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
 #         subregions="../results/assets/subregions.txt"
 #     output:

@@ -1,5 +1,17 @@
 ## Quickstart
 
+Clone this repository
+```bash
+git clone git@github.com:alisonpeard/oia-tanzania-2025.git
+```
+
+Make a conda environment from the provided `environment.yaml` file:
+```bash
+conda env create -f environment.yaml
+conda activate oia-tanzania-2025
+```
+
+
 The following code will intersect an asset (vector in `results/input/assets`) with all hazard scenarios (all rasters in `results/input/hazards/`)
 and compute damage and rehabilitation costs.
 

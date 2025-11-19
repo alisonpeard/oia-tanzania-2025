@@ -14,8 +14,6 @@ rule intersect_subregion:
     snakemake --cores 4 ../results/risk/unprotected/nodes/tza_roads_bridges_and_culverts/kilimanjaro.geoparquet
     snakemake --cores 4 ../results/risk/unprotected/edges/tza_railway/kilimanjaro.geoparquet
     snakemake --cores 4 ../results/risk/unprotected/polygons/tza_airports/kilimanjaro.geoparquet
-
-    snakemake --cores 4 ../results/risk/unprotected/edges/tza_railway/simiyu.geoparquet
     """
     input:
         asset_dir="../results/assets/{geom}/{asset}",
