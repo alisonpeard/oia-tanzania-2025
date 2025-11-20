@@ -73,12 +73,12 @@ def intersect_by_overlap(polys, admin):
     polys_with_admin["overlap"] = polys_with_admin.progress_apply(
         calculate_overlap, axis=1, admin=admin_dict
     )
-    polys_with_admin = polys_with_admin[polys_with_admin["overlap"] > 0]
-    polys_with_subregion = polys_with_admin.sort_values("overlap", ascending=False)
-    polys_with_subregion = polys_with_subregion.drop_duplicates(
-        subset=[col for col in polys.columns if col != 'geometry'], keep="first"
-    ).drop(columns=["overlap"])
-    return polys_with_subregion
+    edges_with_admin = polys_with_admin[polys_with_admin["overlap"] > 0]
+    # polys_with_subregion = polys_with_admin.sort_values("overlap", ascending=False)
+    # polys_with_subregion = polys_with_subregion.drop_duplicates(
+    #     subset=[col for col in polys.columns if col != 'geometry'], keep="first"
+    # ).drop(columns=["overlap"])
+    return edges_with_admin
 
 
 def main(input, output, params):

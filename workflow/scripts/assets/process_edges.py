@@ -74,11 +74,11 @@ def intersect_by_overlap(edges, admin):
         calculate_overlap, axis=1, admin=admin_dict
     )
     edges_with_admin = edges_with_admin[edges_with_admin["overlap"] > 0]
-    edges_with_subregion = edges_with_admin.sort_values("overlap", ascending=False)
-    edges_with_subregion = edges_with_subregion.drop_duplicates(
-        subset=[col for col in edges.columns if col != 'geometry'], keep="first"
-    ).drop(columns=["overlap"])
-    return edges_with_subregion
+    # edges_with_subregion = edges_with_admin.sort_values("overlap", ascending=False)
+    # edges_with_subregion = edges_with_subregion.drop_duplicates(
+        # subset=[col for col in edges.columns if col != 'geometry'], keep="first"
+    # ).drop(columns=["overlap"])
+    return edges_with_admin
 
 
 def main(input, output, params):
