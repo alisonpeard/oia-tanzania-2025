@@ -69,6 +69,17 @@ def prepare_rehab_costs(rehab_cost_dir, hazards) -> dict:
     return rehab_costs
 
 
+def prepare_design_standards(protection_dir, hazards) -> dict:
+    design_standards = {}
+    for hazard in hazards:
+        print(f"\nLoading design standards for hazard: {hazard}")
+        design_standards[hazard] = pd.read_csv(
+            os.path.join(protection_dir, f"{hazard}.csv"), comment='#'
+        ).set_index("asset_type", drop=True)
+        print(f"Loaded: {os.path.join(protection_dir, f'{hazard}.csv')}")
+    return design_standards
+
+
 def get_rasters(hazard_dir:list[str]) -> list[str]:
     """Filter out non-tif files from the input raster list"""
     rasters = os.listdir(hazard_dir)
@@ -99,13 +110,14 @@ def main(input, output, params):
 
     damage_curves = prepare_damage_curves(params.damage_curve_dir, hazards, asset_types)
     rehab_costs = prepare_rehab_costs(params.rehab_cost_dir, hazards)
+    design_standards = prepare_design_standards(params.protection_dir, hazards)
 
     if geom_type in ["Point", "MultiPoint"]:
-        vector = points.intersect(vector, rasters, damage_curves, rehab_costs)
+        vector = points.intersect(vector, rasters, damage_curves, rehab_costs, design_standards)
     elif geom_type in ["LineString", "MultiLineString"]:
-        vector = linestrings.intersect(vector, rasters, damage_curves, rehab_costs)
+        vector = linestrings.intersect(vector, rasters, damage_curves, rehab_costs, design_standards)
     elif geom_type in ["Polygon", "MultiPolygon"]:
-        vector = polygons.intersect(vector, rasters, damage_curves, rehab_costs)
+        vector = polygons.intersect(vector, rasters, damage_curves, rehab_costs, design_standards)
     else:
         raise ValueError(f"Unknown geometry type {geom_type}.")
     

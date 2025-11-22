@@ -75,7 +75,8 @@ def copy_raster_values(vector_splits:gpd.GeoDataFrame, raster_files:list[str]) -
 
 def intersect(
         vector:gpd.GeoDataFrame, rasters:list[str],
-        damage_curves:dict, rehab_costs:dict
+        damage_curves:dict, rehab_costs:dict,
+        design_standards:dict
     ) -> gpd.GeoDataFrame:
 
     grid = process_raster_grid(rasters)
@@ -106,6 +107,22 @@ def intersect(
         vector_asset = vector_splits[vector_splits["asset_type"] == asset_type].copy()
         for hazard_col in hazard_cols:
             hazard = get_hazard_from_colname(hazard_col)
+
+            design_standard_df = design_standards[hazard]
+            design_standard_hazard: str = design_standard_df.loc[asset_type, "design_standard_hazard"]
+
+            if design_standard_hazard is None or pd.isna(design_standard_hazard):
+                logging.warning(f"\nNo design standard provided for asset type '{asset_type}' from hazard '{hazard}'. Skipping subtraction.\n")
+            else:
+                design_standard_col = "hazard-" + design_standard_hazard
+                if design_standard_col not in vector_asset.columns:
+                    raise ValueError(
+                        f"\nDesign standard hazard column '{design_standard_col}' not found in asset exposure data for asset type '{asset_type}'.\n"
+                    )
+                thresholds = vector_asset[design_standard_col]
+                vector_asset[hazard_col] -= thresholds
+                vector_asset[hazard_col] = vector_asset[hazard_col].clip(lower=0.0)
+                logging.info(f"\nDesign standards: subtracted '{design_standard_col}' from '{hazard_col}' for asset type '{asset_type}'.\n")
             
             for suffix in ["mean", "min", "max"]:
                 damage_function = damage_curves[(hazard, asset_type)][suffix]

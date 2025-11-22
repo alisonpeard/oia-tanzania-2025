@@ -66,7 +66,7 @@ def calculate_raster_cell_areas(raster_path):
         return np.tile(areas_col[:, np.newaxis], (1, src.width))
 
 
-def intersect(vector, rasters, damage_curves, rehab_costs):
+def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> gpd.GeoDataFrame:
 
     areas = calculate_raster_cell_areas(rasters[0])
     asset_types = list(vector["asset_type"].unique())
@@ -77,6 +77,22 @@ def intersect(vector, rasters, damage_curves, rehab_costs):
         for raster in rasters:
             hazard_col = f"hazard-{Path(raster).stem}"
             hazard = get_hazard_from_colname(hazard_col)
+
+            design_standard_df = design_standards[hazard]
+            design_standard_hazard: str = design_standard_df.loc[asset_type, "design_standard_hazard"]
+
+            if design_standard_hazard is None or pd.isna(design_standard_hazard):
+                logging.warning(f"\nNo design standard provided for asset type '{asset_type}' from hazard '{hazard}'. Skipping subtraction.\n")
+            else:
+                design_standard_col = "hazard-" + design_standard_hazard
+                if design_standard_col not in vector_asset.columns:
+                    raise ValueError(
+                        f"\nDesign standard hazard column '{design_standard_col}' not found in asset exposure data for asset type '{asset_type}'.\n"
+                    )
+                thresholds = vector_asset[design_standard_col]
+                vector_asset[hazard_col] -= thresholds
+                vector_asset[hazard_col] = vector_asset[hazard_col].clip(lower=0.0)
+                logging.info(f"\nDesign standards: subtracted '{design_standard_col}' from '{hazard_col}' for asset type '{asset_type}'.\n")
 
             with tempfile.TemporaryDirectory() as tmpdir:
                 tmpfile = os.path.join(tmpdir, "asset.shp")
