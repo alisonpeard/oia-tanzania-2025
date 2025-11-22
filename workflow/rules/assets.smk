@@ -28,7 +28,7 @@ rule process_edges:
     """
     input:
         edges=f"{INPUTS}/assets/{{asset}}_edges.parquet",
-        admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
+        admin=f"{INPUTS}/admin/tza_admin_{ADMIN_LEVEL}.gpkg",
         subregions="../results/assets/subregions.txt"
     output:
         edgedir=directory("../results/assets/edges/{asset}"),
@@ -44,7 +44,7 @@ rule process_nodes:
     """
     input:
         points=f"{INPUTS}/assets/{{asset}}_nodes.parquet",
-        admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
+        admin=f"{INPUTS}/admin/tza_admin_{ADMIN_LEVEL}.gpkg",
         subregions="../results/assets/subregions.txt"
     output:
         pointdir=directory("../results/assets/nodes/{asset}"),
@@ -62,7 +62,7 @@ rule process_polygons:
     """
     input:
         polys=f"{INPUTS}/assets/{{asset}}_polygons.parquet",
-        admin=f"{INPUTS}/admin/geoboundaries/geoBoundaries-TZA-ADM{ADMIN_LEVEL}.gpkg",
+        admin=f"{INPUTS}/admin/tza_admin_{ADMIN_LEVEL}.gpkg",
         subregions="../results/assets/subregions.txt"
     output:
         polydir=directory("../results/assets/polygons/{asset}"),
