@@ -1,5 +1,10 @@
-"""To do
+"""
+Note: this is pretty different to the usual snail intersections method. exactextract is 
+really fast but needs a very different setup. The splits are made and deleted on the fly.
+
+To do
 - make one mega-raster so I don't have to loop through hazards. Should make it way faster.
+- need to map all rasters to band numbers
 """
 
 import os
@@ -33,34 +38,6 @@ def write_raster(w:np.ndarray, src:rasterio.DatasetReader, outpath:str):
     ) as dst:
         dst.write(w, 1)
 
-
-def _damaged_units(x, c, w, damage_function):
-    """
-    Args:
-    - x: raster values
-    - c: cell coverage fractions
-    - w: cell areas (sqm)
-    """
-    # NEW: this is binary so we measure it in units / area sqm
-    x = np.ma.filled(x, 0)
-    damage_frac = damage_function(x) # nonlinear / pwl
-    damage_binary = (damage_frac > 0).astype(float)
-    damage_units = damage_binary * c * w
-    return np.sum(damage_units)
-
-
-def _rehab_cost(x, c, w, damage_function, cost):
-    """
-    Args:
-    - x: raster values
-    - c: cell coverage fractions
-    - w: cell areas (sqm)
-    """
-    x = np.ma.filled(x, 0)
-    damage_frac = damage_function(x) # nonlinear / pwl
-    damage_units = damage_frac * c * w
-    damage_cost = damage_units * cost
-    return np.sum(damage_cost)
 
 
 def calculate_raster_cell_areas(raster_path):
@@ -123,6 +100,51 @@ def prepare_hazard(outfile, hazard, design_hazard=None):
     return None
 
 
+def _damaged_units(x, c, w, damage_function):
+    """
+    Args:
+    - x: raster values
+    - c: cell coverage fractions
+    - w: cell areas (sqm)
+    """
+    # NEW: this is binary so we measure it in units / area sqm
+    x = np.ma.filled(x, 0)
+    damage_frac = damage_function(x) # nonlinear / pwl
+    damage_binary = (damage_frac > 0).astype(float)
+    damage_units = damage_binary * c * w
+    return np.sum(damage_units)
+
+
+def _rehab_cost(x, c, w, damage_function, cost):
+    """
+    Args:
+    - x: raster values
+    - c: cell coverage fractions
+    - w: cell areas (sqm)
+    """
+    x = np.ma.filled(x, 0)
+    damage_frac = damage_function(x) # nonlinear / pwl
+    damage_units = damage_frac * c * w
+    damage_cost = damage_units * cost
+    return np.sum(damage_cost)
+
+
+def make_damage_op(damage_function, damage_col):
+    """Factory function to create damage function for exact_extract."""
+    def damage(x, c, w):
+        return _damaged_units(x, c, w, damage_function=damage_function)
+    damage.__name__ = damage_col
+    return damage
+
+
+def make_rehab_cost_op(damage_function, cost, cost_col):
+    """Factory function to create rehab cost function for exact_extract."""
+    def rehab_cost(x, c, w):
+        return _rehab_cost(x, c, w, damage_function=damage_function, cost=cost)
+    rehab_cost.__name__ = cost_col
+    return rehab_cost
+
+
 def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> gpd.GeoDataFrame:
 
     areas = calculate_raster_cell_areas(rasters[0])
@@ -162,20 +184,6 @@ def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> 
                 damage_cols = []
                 cost_cols = []
 
-                def make_damage(damage_function, damage_col):
-                    """Factory to create damage function for exact_extract."""
-                    def damage(x, c, w):
-                        return _damaged_units(x, c, w, damage_function=damage_function)
-                    damage.__name__ = damage_col
-                    return damage
-
-                def make_rehab_cost(damage_function, cost, cost_col):
-                    """Factory to create rehab cost function for exact_extract."""
-                    def rehab_cost(x, c, w):
-                        return _rehab_cost(x, c, w, damage_function=damage_function, cost=cost)
-                    rehab_cost.__name__ = cost_col
-                    return rehab_cost
-
                 for prefix in ["min", "mean", "max"]:
                     damage_function = damage_curves[(hazard, asset_type)][prefix]
                     damage_col = hazard_col.replace("hazard-", "damage-") + "_" + prefix
@@ -185,8 +193,8 @@ def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> 
                     cost = rehab_costs[hazard].loc[asset_type, f"{prefix}_cost_usd"]
                     cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
 
-                    damage = make_damage(damage_function, damage_col)
-                    rehab_cost = make_rehab_cost(damage_function, cost, cost_col)
+                    damage = make_damage_op(damage_function, damage_col)
+                    rehab_cost = make_rehab_cost_op(damage_function, cost, cost_col)
 
                     ops.extend([damage, rehab_cost])
 
@@ -194,7 +202,7 @@ def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> 
                     cost_cols.append(cost_col)
                         
                 hazard_stats = exact_extract(
-                    hazard_tmp, asset_tmp, ops, #["max", damage, rehab_cost], 
+                    hazard_tmp, asset_tmp, ops,
                     weights=weight_tmp,
                     progress=True, output="pandas"
                 )
