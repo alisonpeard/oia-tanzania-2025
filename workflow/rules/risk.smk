@@ -11,15 +11,15 @@ def get_subregions():
 
 rule intersect_subregion:
     """
-    snakemake --cores 4 ../results/risk/nodes/tza_roads_bridges_and_culverts/unprotected/kilimanjaro.geoparquet
-    snakemake --cores 4 ../results/risk/edges/tza_railway/unprotected/kilimanjaro.geoparquet
-    snakemake --cores 4 ../results/risk/polygons/tza_airports/unprotected/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/risk/edges/tza_railway/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/risk/nodes/tza_roads_bridges_and_culverts/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/risk/polygons/tza_airports/kilimanjaro.geoparquet
     """
     input:
         asset_dir="../results/assets/{geom}/{asset}",
         hazard_dir=rules.align_hazard_rasters.output.outdir
     output:
-        vector="../results/risk/{geom}/{asset}/unprotected/{subregion}.geoparquet"
+        vector="../results/risk/{geom}/{asset}/{subregion}.geoparquet"
     params:
         subregion="{subregion}",
         copy_raster_values=True,
@@ -38,7 +38,7 @@ rule verify_asset_exposure:
     snakemake --cores 4 ../results/flags/nodes/tza_roads_bridges_and_culverts/kilimanjaro/.verified
     """
     input:
-        vector="../results/risk/{geom}/{asset}/unprotected/{subregion}.geoparquet",
+        vector="../results/risk/{geom}/{asset}/{subregion}.geoparquet",
         ref_dir="../results/assets/{geom}/{asset}",
         hazdir="../results/hazards/aligned"
     params:
@@ -49,23 +49,6 @@ rule verify_asset_exposure:
         "../scripts/risk/verify.py"
 
 
-rule add_protection_standards:
-    """
-    snakemake --cores 4 ../results/risk/edges/tza_railway/protected/kilimanjaro.geoparquet
-    snakemake --cores 4 ../results/risk/polygons/tza_airports/protected/kilimanjaro.geoparquet
-    snakemake --cores 4 ../results/risk/nodes/tza_roads_bridges_and_culverts/protected/kilimanjaro.geoparquet
-    """
-    input:
-        vector="../results/risk/{geom}/{asset}/unprotected/{subregion}.geoparquet",
-        verified="../results/flags/{geom}/{asset}/{subregion}/.verified"
-    output:
-        vector="../results/risk/{geom}/{asset}/protected/{subregion}.geoparquet"
-    params:
-        protection_dir="../config/design_standards"
-    script:
-        "../scripts/risk/protect.py"
-
-
 rule all_results_for_subregion:
     """
     snakemake --cores 4 ../results/flags/edges/tza_railway/kilimanjaro/.done
@@ -74,7 +57,7 @@ rule all_results_for_subregion:
     """
     input:
         verified="../results/flags/{geom}/{asset}/{subregion}/.verified",
-        protected="../results/risk/{geom}/{asset}/protected/{subregion}.geoparquet"
+        protected="../results/risk/{geom}/{asset}/{subregion}.geoparquet"
     output:
         touch("../results/flags/{geom}/{asset}/{subregion}.done")
 

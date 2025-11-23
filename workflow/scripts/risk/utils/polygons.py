@@ -1,3 +1,7 @@
+"""To do
+- make one mega-raster so I don't have to loop through hazards. Should make it way faster.
+"""
+
 import os
 import tempfile
 from pathlib import Path
@@ -8,7 +12,6 @@ import geopandas as gpd
 from pyproj import Geod
 import rasterio
 from exactextract import exact_extract
-import snail.intersection as snint
 from tqdm import tqdm
 import logging
 
@@ -53,6 +56,7 @@ def _rehab_cost(x, c, w, damage_function, cost):
     - c: cell coverage fractions
     - w: cell areas (sqm)
     """
+    x = np.ma.filled(x, 0)
     damage_frac = damage_function(x) # nonlinear / pwl
     damage_units = damage_frac * c * w
     damage_cost = damage_units * cost
@@ -79,6 +83,46 @@ def calculate_raster_cell_areas(raster_path):
         return np.tile(areas_col[:, np.newaxis], (1, src.width))
 
 
+def get_design_standard_raster_path(design_standard, rasters):
+    """Check raster list for design standard raster matching the design_standard stem."""
+    for r in rasters:
+        if Path(r).stem == design_standard:
+            return r
+    return None
+
+
+def prepare_hazard(outfile, hazard, design_hazard=None):
+    """Create a two-band raster with original hazard and residual
+    hazard (hazard - design standard)."""
+    if design_hazard is not None:
+        with rasterio.open(design_hazard) as design_src:
+            with rasterio.open(hazard) as hazard_src:
+                design_data = design_src.read(1, masked=True)
+                hazard_data = hazard_src.read(1, masked=True)
+                residual = hazard_data - design_data
+                residual = np.ma.masked_where(residual < 0, residual)
+    else:
+        with rasterio.open(hazard) as hazard_src:
+            hazard_data = hazard_src.read(1, masked=True)
+            residual = hazard_data.copy()
+
+    with rasterio.open(hazard) as src:
+        with rasterio.open(
+            outfile, 'w',
+            driver='GTiff',
+            height=hazard_data.shape[0],
+            width=hazard_data.shape[1],
+            count=2,
+            dtype=hazard_data.dtype,
+            crs=src.crs,
+            transform=src.transform,
+        ) as dst:
+            dst.write(hazard_data, 1)
+            dst.write(residual, 2)
+    
+    return None
+
+
 def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> gpd.GeoDataFrame:
 
     areas = calculate_raster_cell_areas(rasters[0])
@@ -88,60 +132,84 @@ def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> 
     for asset_type in asset_types:
         vector_asset = vector[vector["asset_type"] == asset_type].copy()
         for raster in rasters:
+            # extract hazard and hazard column name from raster file path
             hazard_col = f"hazard-{Path(raster).stem}"
+            defended_col = f"defended-{Path(raster).stem}"
             hazard = get_hazard_from_colname(hazard_col)
 
+            # check if design standards specified for this (hazard, asset_type)
             design_standard_df = design_standards[hazard]
-            design_standard_hazard: str = design_standard_df.loc[asset_type, "design_standard_hazard"]
+            design_standard: str = design_standard_df.loc[asset_type, "design_standard_hazard"]
+            design_hazard = get_design_standard_raster_path(design_standard, rasters)
 
-            if design_standard_hazard is None or pd.isna(design_standard_hazard):
-                logging.warning(f"\nNo design standard provided for asset type '{asset_type}' from hazard '{hazard}'. Skipping subtraction.\n")
-            else:
-                design_standard_col = "hazard-" + design_standard_hazard
-                if design_standard_col not in vector_asset.columns:
-                    raise ValueError(
-                        f"\nDesign standard hazard column '{design_standard_col}' not found in asset exposure data for asset type '{asset_type}'.\n"
-                    )
-                thresholds = vector_asset[design_standard_col]
-                vector_asset[hazard_col] -= thresholds
-                vector_asset[hazard_col] = vector_asset[hazard_col].clip(lower=0.0)
-                logging.info(f"\nDesign standards: subtracted '{design_standard_col}' from '{hazard_col}' for asset type '{asset_type}'.\n")
 
             with tempfile.TemporaryDirectory() as tmpdir:
-                tmpfile = os.path.join(tmpdir, "asset.shp")
-                tmpwts = os.path.join(tmpdir, "weights.tif")
-                vector_asset[['id', 'geometry']].to_file(tmpfile)
+
+                hazard_tmp = os.path.join(tmpdir, "hazard.tif")
+                asset_tmp = os.path.join(tmpdir, "asset.shp")
+                weight_tmp = os.path.join(tmpdir, "weights.tif")
+
+                # save asset shapefile and weights raster
+                vector_asset[['id', 'geometry']].to_file(asset_tmp)
                 with rasterio.open(raster) as src:
-                    write_raster(areas, src, tmpwts)
+                    write_raster(areas, src, weight_tmp)
+
+                # save a 2-band raster with protected and unprotected hazard
+                prepare_hazard(hazard_tmp, raster, design_hazard=design_hazard)
+
+                # loop through damage functions and rehab costs
+                ops = ["max"]
+                damage_cols = []
+                cost_cols = []
+
+                def make_damage(damage_function, damage_col):
+                    """Factory to create damage function for exact_extract."""
+                    def damage(x, c, w):
+                        return _damaged_units(x, c, w, damage_function=damage_function)
+                    damage.__name__ = damage_col
+                    return damage
+
+                def make_rehab_cost(damage_function, cost, cost_col):
+                    """Factory to create rehab cost function for exact_extract."""
+                    def rehab_cost(x, c, w):
+                        return _rehab_cost(x, c, w, damage_function=damage_function, cost=cost)
+                    rehab_cost.__name__ = cost_col
+                    return rehab_cost
 
                 for prefix in ["min", "mean", "max"]:
                     damage_function = damage_curves[(hazard, asset_type)][prefix]
                     damage_col = hazard_col.replace("hazard-", "damage-") + "_" + prefix
 
-                    for prefix in ["min", "mean", "max"]:
-                        cost = rehab_costs[hazard].loc[asset_type, f"{prefix}_cost_usd"]
-                        cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
+                    # for prefix in ["min", "mean", "max"]:
+                    # NOTE: option to have 9 combinations but 3 should be enough
+                    cost = rehab_costs[hazard].loc[asset_type, f"{prefix}_cost_usd"]
+                    cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
 
-                        def damage(x, c, w): 
-                            return _damaged_units(x, c, w, damage_function=damage_function)
+                    damage = make_damage(damage_function, damage_col)
+                    rehab_cost = make_rehab_cost(damage_function, cost, cost_col)
 
-                        def rehab_cost(x, c, w): 
-                            return _rehab_cost(x, c, w, damage_function=damage_function, cost=cost)
+                    ops.extend([damage, rehab_cost])
+
+                    damage_cols.append(damage_col)
+                    cost_cols.append(cost_col)
                         
-                        hazard_stats = exact_extract(
-                            raster, tmpfile, ["max", damage, rehab_cost], 
-                            weights=tmpwts,
-                            progress=True, output="pandas"
-                        )
+                hazard_stats = exact_extract(
+                    hazard_tmp, asset_tmp, ops, #["max", damage, rehab_cost], 
+                    weights=weight_tmp,
+                    progress=True, output="pandas"
+                )
 
-                        vector_asset[hazard_col] = hazard_stats["max"].astype(float).values
-                        vector_asset[damage_col] = hazard_stats["damage"].astype(float).values
-                        vector_asset[cost_col] = hazard_stats["rehab_cost"].astype(float).values
+                vector_asset[hazard_col] = hazard_stats["band_1_max"].astype(float).values
+                vector_asset[defended_col] = hazard_stats["band_2_max"].astype(float).values
+
+                defended_prefix = "band_2_weight_"
+                for damage_col, cost_col in zip(damage_cols, cost_cols):
+                    vector_asset[damage_col] = hazard_stats[defended_prefix + damage_col].astype(float).values
+                    vector_asset[cost_col] = hazard_stats[defended_prefix + cost_col].astype(float).values
                     
         asset_type_damages.append(vector_asset)
     
     vector = pd.concat(asset_type_damages, axis=0)
-
     
     geod = Geod(ellps="WGS84")
     def calculate_area(geom):
@@ -154,4 +222,5 @@ def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> 
     )
     vector["unit_type"] = "sqm"
     vector = vector.set_index("id")
+
     return vector

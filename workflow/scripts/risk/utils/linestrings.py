@@ -146,8 +146,10 @@ def intersect(
             design_standard_df = design_standards[hazard]
             design_standard_hazard: str = design_standard_df.loc[asset_type, "design_standard_hazard"]
 
+            defended_col = hazard_col.replace("hazard-", "defended-")
             if design_standard_hazard is None or pd.isna(design_standard_hazard):
                 logging.warning(f"\nNo design standard provided for asset type '{asset_type}' from hazard '{hazard}'. Skipping subtraction.\n")
+                vector_asset[defended_col] = vector_asset[hazard_col]
             else:
                 design_standard_col = "hazard-" + design_standard_hazard
                 if design_standard_col not in vector_asset.columns:
@@ -155,23 +157,23 @@ def intersect(
                         f"\nDesign standard hazard column '{design_standard_col}' not found in asset exposure data for asset type '{asset_type}'.\n"
                     )
                 thresholds = vector_asset[design_standard_col]
-                vector_asset[hazard_col] -= thresholds
-                vector_asset[hazard_col] = vector_asset[hazard_col].clip(lower=0.0)
+                vector_asset[defended_col] = (vector_asset[hazard_col] - thresholds).clip(lower=0.0)
                 logging.info(f"\nDesign standards: subtracted '{design_standard_col}' from '{hazard_col}' for asset type '{asset_type}'.\n")
             
             for suffix in ["mean", "min", "max"]:
                 damage_function = damage_curves[(hazard, asset_type)][suffix]
-                damage_col = hazard_col.replace("hazard-", "damage-") + "_" + suffix
-                vector_asset[damage_col] = vector_asset[hazard_col].apply(damage_function)
+                damage_col = defended_col.replace("defended-", "damage-") + "_" + suffix
+                vector_asset[damage_col] = vector_asset[defended_col].apply(damage_function)
 
                 damage_cols.add(damage_col)
 
-                for prefix in ["min", "mean", "max"]:
-                    cost = rehab_costs[hazard].loc[asset_type, f"{prefix}_cost_usd"]
-                    cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
-                    vector_asset[cost_col] = cost * vector_asset[damage_col] * vector_asset["unit"]
+                # for suffix in ["min", "mean", "max"]:
+                # NOTE: can add this back later if we want 9 combinations
+                cost = rehab_costs[hazard].loc[asset_type, f"{suffix}_cost_usd"]
+                cost_col = damage_col.replace("damage-", "cost-") + "_" + suffix
+                vector_asset[cost_col] = cost * vector_asset[damage_col] * vector_asset["unit"]
 
-                    cost_cols.add(cost_col)
+                cost_cols.add(cost_col)
                 
                 # NEW: change damage from fraction to units damaged
                 vector_asset[damage_col] = (vector_asset[damage_col] > 0) * vector_asset["unit"]
