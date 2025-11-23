@@ -27,4 +27,3 @@ rule align_hazard_rasters:
         outdir=directory("../results/hazards/aligned")
     script:
         "../../scripts/hazards/align_rasters.py"
-        

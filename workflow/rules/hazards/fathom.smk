@@ -5,7 +5,7 @@ rule mosaic_fathom:
     snakemake --cores 4 ../results/hazards/input/pluvial_2050_ssp585_rp00100.tif
     """
     input:
-        zipfile=lambda wildcards: "{path}/input/hazards/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
+        zipfile=lambda wildcards: "{path}/hazards/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
             path=INPUTS,
             subcategory=wildcards.SUBCATEGORY,
             epoch=wildcards.EPOCH,
