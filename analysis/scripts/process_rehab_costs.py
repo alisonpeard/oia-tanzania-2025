@@ -7,12 +7,12 @@ import yaml
 
 
 hazard_cost_dict = {
-    "fluvial": "flood_storm_landslide",
-    "pluvial": "flood_storm_landslide",
-    "coastal": "flood_storm_landslide",
-    # "cyclone": "flood_storm_landslide",
-    # "landslide": "flood_storm_landslide",
-    # "heat": "heat",
+    "fluvial": "floods_storms_landslides",
+    "pluvial": "floods_storms_landslides",
+    "coastal": "floods_storms_landslides",
+    "cyclone": "floods_storms_landslides",
+    "landslide": "floods_storms_landslides",
+    "heat": "heat",
 }
 
 def standardise_cost_columns(df, currency="usd"):
@@ -40,9 +40,12 @@ if __name__ == "__main__":
         cfg = yaml.safe_load(f)
 
     indir = cfg["inputs"]
-    indir = os.path.join(indir, "input", "costs")
+    indir = os.path.join(indir, "costs")
+    print(f"Processing rehab costs from {indir}")
 
     for hazard, hazdir in hazard_cost_dict.items():
+        print(f"Processing hazard: {hazard}")
+        print(f"  from directory: {hazdir}")
         cost_files = glob(os.path.join(indir, hazdir, "*.csv"))                
         cost_dfs = []
         for file in cost_files:
