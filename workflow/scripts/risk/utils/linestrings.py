@@ -78,8 +78,9 @@ def unsplit(vector, vector_ref, hazard_cols, damage_cols, cost_cols):
     risk_cols = hazard_cols + damage_cols + cost_cols
     meta_cols =  ["asset_type", "unit", "unit_type"]
 
+    # NEW: damage col is now total units damaged, so sum
     agg_func = {col: "max" for col in hazard_cols} | \
-                {col: "mean" for col in damage_cols} | \
+                {col: "sum" for col in damage_cols} | \
                     {col: "sum" for col in cost_cols}
     meta_agg = {"unit": "sum", 'unit_type': "first", "asset_type": "first"}
     agg_func.update(meta_agg)
@@ -171,6 +172,9 @@ def intersect(
                     vector_asset[cost_col] = cost * vector_asset[damage_col] * vector_asset["unit"]
 
                     cost_cols.add(cost_col)
+                
+                # NEW: change damage from fraction to units damaged
+                vector_asset[damage_col] = (vector_asset[damage_col] > 0) * vector_asset["unit"]
         
         asset_type_damages.append(vector_asset)
     

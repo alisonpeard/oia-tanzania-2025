@@ -30,18 +30,31 @@ def write_raster(w:np.ndarray, src:rasterio.DatasetReader, outpath:str):
     ) as dst:
         dst.write(w, 1)
 
-def _damage_fraction(x, c, damage_function):
-    """Wrapper function."""
+
+def _damaged_units(x, c, w, damage_function):
+    """
+    Args:
+    - x: raster values
+    - c: cell coverage fractions
+    - w: cell areas (sqm)
+    """
+    # NEW: this is binary so we measure it in units / area sqm
     x = np.ma.filled(x, 0)
-    damage = damage_function(x) # nonlinear / pwl
-    return np.mean(damage * c)
+    damage_frac = damage_function(x) # nonlinear / pwl
+    damage_binary = (damage_frac > 0).astype(float)
+    damage_units = damage_binary * c * w
+    return np.sum(damage_units)
 
 
 def _rehab_cost(x, c, w, damage_function, cost):
-    """Wrapper function."""
-    x = np.ma.filled(x, 0)
-    damage = damage_function(x) # nonlinear / pwl
-    damage_units = damage * c * w
+    """
+    Args:
+    - x: raster values
+    - c: cell coverage fractions
+    - w: cell areas (sqm)
+    """
+    damage_frac = damage_function(x) # nonlinear / pwl
+    damage_units = damage_frac * c * w
     damage_cost = damage_units * cost
     return np.sum(damage_cost)
 
@@ -110,11 +123,11 @@ def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> 
                         cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
 
                         def damage(x, c, w): 
-                            return _damage_fraction(x, c, damage_function=damage_function)
+                            return _damaged_units(x, c, w, damage_function=damage_function)
 
                         def rehab_cost(x, c, w): 
                             return _rehab_cost(x, c, w, damage_function=damage_function, cost=cost)
-
+                        
                         hazard_stats = exact_extract(
                             raster, tmpfile, ["max", damage, rehab_cost], 
                             weights=tmpwts,
@@ -124,7 +137,7 @@ def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> 
                         vector_asset[hazard_col] = hazard_stats["max"].astype(float).values
                         vector_asset[damage_col] = hazard_stats["damage"].astype(float).values
                         vector_asset[cost_col] = hazard_stats["rehab_cost"].astype(float).values
-        
+                    
         asset_type_damages.append(vector_asset)
     
     vector = pd.concat(asset_type_damages, axis=0)

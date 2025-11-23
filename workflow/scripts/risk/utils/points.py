@@ -137,6 +137,8 @@ def intersect(
                     vector_asset[cost_col] = cost * vector_asset[damage_col] * vector_asset["unit"]
 
                     cost_cols.add(cost_col)
+
+                vector_asset[damage_col] = float(vector_asset[damage_col] > 0)
         
         asset_type_damages.append(vector_asset)
     
