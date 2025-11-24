@@ -28,6 +28,7 @@ dependencies:
   - zarr                # zarr ndarray/raster store
   - exactextract==0.2.0
   - h5py
+  - cartopy
   - pip:
     - nismod-snail==0.5.2 # vector-raster intersections
     - snkit==1.8.1        # spatial network cleaning

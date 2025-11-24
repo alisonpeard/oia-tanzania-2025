@@ -16,8 +16,8 @@ def format_design_standard(rp, hazard, scenario, epoch):
         return None
     return '_'.join([
         hazard,
-        scenario,
         str(epoch),
+        scenario,
         f"rp{str(rp).zfill(5)}"
     ])
 

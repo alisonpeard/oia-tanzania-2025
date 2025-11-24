@@ -68,7 +68,7 @@ def get_design_standard_raster_path(design_standard, rasters):
     return None
 
 
-def prepare_hazard(outfile, hazard, design_hazard=None):
+def prepare_hazard(outfile, hazard, design_hazard=None) -> None:
     """Create a two-band raster with original hazard and residual
     hazard (hazard - design standard)."""
     if design_hazard is not None:
@@ -96,6 +96,67 @@ def prepare_hazard(outfile, hazard, design_hazard=None):
         ) as dst:
             dst.write(hazard_data, 1)
             dst.write(residual, 2)
+    
+    return None
+
+
+def prepare_hazards(outfile:str, hazards:list, design_hazards:list) -> None:
+    """Create a two-band raster with original hazard and residual
+    hazard (hazard - design standard)."""
+    hazard_datas = []
+    residuals = []
+    band_mapping = {}
+    i = 1
+    for hazard, design_hazard in zip(hazards, design_hazards):
+        logging.info(f"Preparing hazard raster: {hazard} with design standard: {design_hazard}")
+        if design_hazard is not None:
+            with rasterio.open(design_hazard) as design_src:
+                with rasterio.open(hazard) as hazard_src:
+                    design_data = design_src.read(1, masked=True)
+                    hazard_data = hazard_src.read(1, masked=True)
+                    residual = hazard_data - design_data
+                    residual = np.ma.masked_where(residual < 0, residual)
+        else:
+            with rasterio.open(hazard) as hazard_src:
+                hazard_data = hazard_src.read(1, masked=True)
+                residual = hazard_data.copy()
+
+        hazard_datas.append(hazard_data)
+        residuals.append(residual)
+        band_mapping[hazard] = (i, i+1)
+        i += 2
+
+
+
+    # if design_hazard is not None:
+    #     with rasterio.open(design_hazard) as design_src:
+    #         with rasterio.open(hazard) as hazard_src:
+    #             design_data = design_src.read(1, masked=True)
+    #             hazard_data = hazard_src.read(1, masked=True)
+    #             residual = hazard_data - design_data
+    #             residual = np.ma.masked_where(residual < 0, residual)
+    # else:
+    #     with rasterio.open(hazard) as hazard_src:
+    #         hazard_data = hazard_src.read(1, masked=True)
+    #         residual = hazard_data.copy()
+
+    with rasterio.open(hazards[0]) as src:
+        with rasterio.open(
+            outfile, 'w',
+            driver='GTiff',
+            height=hazard_data.shape[0],
+            width=hazard_data.shape[1],
+            count=2,
+            dtype=hazard_data.dtype,
+            crs=src.crs,
+            transform=src.transform,
+        ) as dst:
+            for hazard, design_hazard in zip(hazards, design_hazards):
+
+
+            
+            # dst.write(hazard_data, 1)
+            # dst.write(residual, 2)
     
     return None
 
@@ -161,9 +222,8 @@ def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> 
 
             # check if design standards specified for this (hazard, asset_type)
             design_standard_df = design_standards[hazard]
-            design_standard: str = design_standard_df.loc[asset_type, "design_hazard"]
-            design_hazard = get_design_standard_raster_path(design_standard, rasters)
-
+            design_standard:str = design_standard_df.loc[asset_type, "design_hazard"]
+            design_hazard:str = get_design_standard_raster_path(design_standard, rasters)
 
             with tempfile.TemporaryDirectory() as tmpdir:
 

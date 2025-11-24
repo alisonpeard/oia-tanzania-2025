@@ -120,7 +120,7 @@ def main(input, output, params):
         vector = polygons.intersect(vector, rasters, damage_curves, rehab_costs, design_standards)
     else:
         raise ValueError(f"Unknown geometry type {geom_type}.")
-    
+        
     vector.to_parquet(output.vector)
 
     logging.info("Done.")

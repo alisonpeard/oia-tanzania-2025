@@ -5,7 +5,7 @@ rule mosaic_fathom:
     snakemake --cores 4 ../results/hazards/input/pluvial_2050_ssp585_rp00100.tif
     """
     input:
-        zipfile=lambda wildcards: "{path}/hazards/flood/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
+        zipfile=lambda wildcards: "{path}/hazards/fathom/{subcategory}/{epoch}/{scenario}/1in{rp}.zip".format(
             path=INPUTS,
             subcategory=wildcards.SUBCATEGORY,
             epoch=wildcards.EPOCH,
@@ -71,10 +71,10 @@ rule all_fathom_scenarios:
     input:
         tiffs = expand(
             "../results/hazards/input/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
-            SUBCATEGORY=["pluvial"],
-            EPOCH=["2050"],
-            SCENARIO=["ssp585"],
-            RP = ["00010", "00050", "00200", "00500", "01000"]
+            SUBCATEGORY=["pluvial"],#["fluvial", "coastal", "pluvial"],
+            EPOCH=["2030", "2050"],#["2030", "2050", "2080"],
+            SCENARIO=["ssp126", "ssp245", "ssp585"],
+            RP = ["00005", "00010", "00020", "00050", "00100", "00200", "00500", "01000"]
         )
 
 
@@ -85,5 +85,5 @@ rule all_fathom_historical:
             SUBCATEGORY=["pluvial", "fluvial", "coastal"],
             EPOCH=["2020"],
             SCENARIO=["historical"],
-            RP=["00005", "00010", "00100", "00200", "00500", "01000"],
+            RP=["00005", "00010", "00020", "00050", "00100", "00200", "00500", "01000"],
         )   

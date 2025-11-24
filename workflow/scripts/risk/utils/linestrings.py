@@ -144,17 +144,19 @@ def intersect(
             hazard = get_hazard_from_colname(hazard_col)
 
             design_standard_df = design_standards[hazard]
-            design_standard_hazard: str = design_standard_df.loc[asset_type, "design_standard_hazard"]
+            design_hazard: str = design_standard_df.loc[asset_type, "design_hazard"]
 
             defended_col = hazard_col.replace("hazard-", "defended-")
-            if design_standard_hazard is None or pd.isna(design_standard_hazard):
+            if design_hazard is None or pd.isna(design_hazard):
                 logging.warning(f"\nNo design standard provided for asset type '{asset_type}' from hazard '{hazard}'. Skipping subtraction.\n")
                 vector_asset[defended_col] = vector_asset[hazard_col]
             else:
-                design_standard_col = "hazard-" + design_standard_hazard
+                design_standard_col = "hazard-" + design_hazard
                 if design_standard_col not in vector_asset.columns:
                     raise ValueError(
-                        f"\nDesign standard hazard column '{design_standard_col}' not found in asset exposure data for asset type '{asset_type}'.\n"
+                        f"\nDesign standard hazard column '{design_standard_col}' not found in asset exposure data for asset type '{asset_type}'.\n" +
+                        f"Available columns: {vector_asset.columns.tolist()}\n"
+                        
                     )
                 thresholds = vector_asset[design_standard_col]
                 vector_asset[defended_col] = (vector_asset[hazard_col] - thresholds).clip(lower=0.0)
@@ -184,6 +186,8 @@ def intersect(
 
 
     logging.info("Dissolving split geometries back to original...")
+    defended_cols = [hazcols.replace("hazard-", "defended-") for hazcols in hazard_cols]
+    hazard_cols += defended_cols
     vector = unsplit(
         vector_splits, vector,
         hazard_cols, list(damage_cols), list(cost_cols)

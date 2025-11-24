@@ -49,11 +49,11 @@ rule verify_asset_exposure:
         "../scripts/risk/verify.py"
 
 
-rule all_results_for_subregion:
+rule all_results_for_single_subregion:
     """
-    snakemake --cores 4 ../results/flags/edges/tza_railway/kilimanjaro/.done
-    snakemake --cores 4 ../results/flags/polygons/tza_airports/kilimanjaro/.done
-    snakemake --cores 4 ../results/flags/nodes/tza_roads_bridges_and_culverts/kilimanjaro/.done
+    snakemake --cores 4 ../results/flags/edges/tza_railway/kilimanjaro.done
+    snakemake --cores 4 ../results/flags/polygons/tza_airports/kilimanjaro.done
+    snakemake --cores 4 ../results/flags/nodes/tza_roads_bridges_and_culverts/kilimanjaro.done
     """
     input:
         verified="../results/flags/{geom}/{asset}/{subregion}/.verified",
@@ -73,7 +73,7 @@ def all_subregion_flags(wildcards):
     )
 
 
-rule all_results_for_asset:
+rule all_results_for_all_subregions:
     """
     snakemake --cores 4 ../results/flags/edges/tza_railway/.done
     snakemake --cores 4 ../results/flags/polygons/tza_airports/.done

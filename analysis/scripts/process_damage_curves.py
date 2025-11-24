@@ -39,7 +39,7 @@ for path in Path(indir).rglob("*.csv"):
     df = check_for_synonyms(df, "intensity", intensity_synonyms)
     df = check_for_synonyms(df, "damage_fraction_mean", damage_synonyms)
 
-    outpath = path.replace(indir, outdir)
+    outpath = str(path).replace(indir, outdir)
     df.to_csv(outpath, index=False)
     print(f"  Wrote to {outpath}\n")
 

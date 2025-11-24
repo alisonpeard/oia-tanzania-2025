@@ -5,6 +5,10 @@ configfile: "config.yaml"
 INPUTS = config["inputs"]
 ADMIN_LEVEL = config["admin_level"]
 
+# pre-processing rules for hazards
+include: "rules/hazards/fathom.smk"
+
+# main analysis rules
 include: "rules/assets.smk"
 include: "rules/hazards/general.smk"
 include: "rules/risk.smk"
