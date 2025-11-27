@@ -3,12 +3,15 @@ import os
 configfile: "config.yaml"
 
 INPUTS = config["inputs"]
+OUTPUTS = config["outputs"]
 ADMIN_LEVEL = config["admin_level"]
 
 # pre-processing rules for hazards
-include: "rules/hazards/fathom.smk"
+# include: "rules/hazards/fathom.smk"
+# include: "rules/hazards/chaz.smk"
+# include: "rules/hazards/landslides.smk"
 
 # main analysis rules
+include: "rules/hazards.smk"
 include: "rules/assets.smk"
-include: "rules/hazards/general.smk"
 include: "rules/risk.smk"
