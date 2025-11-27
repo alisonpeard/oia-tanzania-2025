@@ -14,6 +14,8 @@ rule mosaic_fathom:
         )
     output:
         tiff="../results/hazards/input/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif"
+    wildcard_constraints:
+        SUBCATEGORY="(fluvial|coastal|pluvial)"
     shell:
         """
         TEMP_DIR=$(mktemp -d)
@@ -72,8 +74,8 @@ rule all_fathom_scenarios:
         tiffs = expand(
             "../results/hazards/input/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
             SUBCATEGORY=["pluvial"],#["fluvial", "coastal", "pluvial"],
-            EPOCH=["2030", "2050"],#["2030", "2050", "2080"],
-            SCENARIO=["ssp126", "ssp245", "ssp585"],
+            EPOCH=["2080"],#["2030", "2050", "2080"],
+            SCENARIO=["ssp245"], # ["ssp126", "ssp245", "ssp585"],
             RP = ["00005", "00010", "00020", "00050", "00100", "00200", "00500", "01000"]
         )
 
