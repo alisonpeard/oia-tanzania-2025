@@ -17,6 +17,10 @@ def get_hazard_from_filename(raster_path):
     return Path(raster_path).stem.split('_')[0]
 
 
+def get_hazard_from_colname(colname):
+    return colname.split('_')[0].split('-')[-1]
+
+
 def make_damage_function(df:pd.DataFrame, suffix="mean"):
     hazard_intensity, damage_fraction = (
         df["intensity"],
@@ -91,6 +95,21 @@ def get_rasters(hazard_dir:list[str]) -> list[str]:
     return filtered_rasters
 
 
+def separate_hazards(vector: gpd.GeoDataFrame) -> dict[str, gpd.GeoDataFrame]:
+    base_cols = ['id', 'asset_type', 'unit', 'unit_type', 'geometry']
+    prefixes = ('hazard-', 'damage-', 'cost-')
+    
+    hazard_cols = [col for col in vector.columns if col.startswith(prefixes)]
+    hazards = {get_hazard_from_colname(col) for col in hazard_cols}
+    
+    hazard_vectors = {}
+    for hazard in hazards:
+        cols = base_cols + [col for col in hazard_cols if get_hazard_from_colname(col) == hazard]
+        hazard_vectors[hazard] = vector[cols].copy()
+    
+    return hazard_vectors
+
+
 def main(input, output, params):
     asset_file = os.path.join(input.asset_dir, f"{params.subregion}.geoparquet")
     vector = gpd.read_parquet(asset_file, columns=ASSET_COLS)
@@ -115,13 +134,20 @@ def main(input, output, params):
     if geom_type in ["Point", "MultiPoint"]:
         vector = points.intersect(vector, rasters, damage_curves, rehab_costs, design_standards)
     elif geom_type in ["LineString", "MultiLineString"]:
-        vector = linestrings.intersect(vector, rasters, damage_curves, rehab_costs, design_standards)
+        vector = linestrings.intersect(vector, rasters, damage_curves, rehab_costs, design_standards, save_splits=params.save_splits)
     elif geom_type in ["Polygon", "MultiPolygon"]:
         vector = polygons.intersect(vector, rasters, damage_curves, rehab_costs, design_standards)
     else:
         raise ValueError(f"Unknown geometry type {geom_type}.")
+    
+    # save as separate files by hazard
+    vectors_by_hazard: dict = separate_hazards(vector)
+    for hazard, hazard_vector in vectors_by_hazard.items():
+        outpath = os.path.join(output.outdir, f"{hazard}.geoparquet")
+        hazard_vector.to_parquet(outpath)
+        logging.info(f"Wrote hazard-specific output: {outpath}")
         
-    vector.to_parquet(output.vector)
+    # vector.to_parquet(output.vector)
 
     logging.info("Done.")
 

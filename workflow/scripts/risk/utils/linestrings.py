@@ -103,7 +103,8 @@ def unsplit(vector, vector_ref, hazard_cols, damage_cols, cost_cols):
 def intersect(
         vector:gpd.GeoDataFrame, rasters:list[str],
         damage_curves:dict, rehab_costs:dict,
-        design_standards:dict
+        design_standards:dict,
+        save_splits:bool=False
     ) -> gpd.GeoDataFrame:
 
     grid = process_raster_grid(rasters)
@@ -184,6 +185,8 @@ def intersect(
     
     vector_splits = pd.concat(asset_type_damages, axis=0)
 
+    if save_splits:
+        raise NotImplementedError("Saving split geometries not yet implemented.")
 
     logging.info("Dissolving split geometries back to original...")
     defended_cols = [hazcols.replace("hazard-", "defended-") for hazcols in hazard_cols]

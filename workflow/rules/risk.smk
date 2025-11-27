@@ -14,19 +14,27 @@ rule intersect_subregion:
     snakemake --cores 4 ../results/risk/edges/tza_railway/kilimanjaro.geoparquet
     snakemake --cores 4 ../results/risk/nodes/tza_roads_bridges_and_culverts/kilimanjaro.geoparquet
     snakemake --cores 4 ../results/risk/polygons/tza_airports/kilimanjaro.geoparquet
+
+    NOTE: new format (contains pluvial.geoparquet, fluvial.geoparquet, etc.)
+    snakemake --cores 4 ../results/risk/tza_railway_edges/kilimanjaro
+    snakemake --cores 4 ../results/risk/tza_airports_polygons/kilimanjaro
+    snakemake --cores 4 ../results/risk/tza_roads_bridges_and_culverts_nodes/kilimanjaro
     """
     input:
         asset_dir="../results/assets/{geom}/{asset}",
-        hazard_dir=rules.align_hazard_rasters.output.outdir
+        # hazard_dir=rules.align_hazard_rasters.output.outdir
+        hazard_dir="../results/hazards/aligned"
     output:
-        vector="../results/risk/{geom}/{asset}/{subregion}.geoparquet"
+        # vector="../results/risk/{geom}/{asset}/{subregion}.geoparquet"
+        outdir=directory("../results/risk/{asset}_{geom}/{subregion}")
     params:
         subregion="{subregion}",
         copy_raster_values=True,
         crs=config["local_crs"],
         damage_curve_dir="../config/damage_curves",
         rehab_cost_dir="../config/rehab_costs",
-        protection_dir="../config/design_standards"
+        protection_dir="../config/design_standards",
+        save_splits=False
     script:
         "../scripts/risk/intersect.py"
 
