@@ -4,7 +4,6 @@ This script is for manually verifying that the intersection results look right.
 
 # %%
 import os
-
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -17,6 +16,24 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
+from utils import extract_hazard_info
+
+
+subregion = "kilimanjaro"
+
+profile = [
+    ("nodes", "tza_roads_bridges_and_culverts", "masonry_arch_culvert_good"),
+    ("edges", "tza_railway", "mgr_track_open"),
+    ("polygons", "tza_airports", "airport"),
+][0]
+
+geometry, asset, asset_type = profile
+
+hazard = "pluvial"
+epoch = 2020
+scenario = "historical"
+rp = 200
+plot = True
 
 
 # helper functions for working with hazard columns
@@ -36,14 +53,6 @@ def get_defendedcol(hazard:str, epoch:int, scenario:str, rp:int) -> str:
     hazcol = f"defended-{hazard}_{epoch}_{scenario}_rp{str(rp).zfill(5)}"
     return hazcol
 
-def extract_hazard_info(hazcol:str) -> tuple[str, str, str, int]:
-    """Extract hazard, epoch, scenario, and return period from hazard column name."""
-    parts = hazcol.replace("hazard-", "").split("_")
-    hazard = parts[0]
-    epoch = parts[1]
-    scenario = parts[2]
-    rp = int(parts[3].replace("rp", ""))
-    return hazard, epoch, scenario, rp
 
 def get_available_scenarios(exposure):
     """Get available hazards, epochs, scenarios, and return periods in exposure dataframe."""
@@ -113,26 +122,6 @@ def mask_zero_values(da:xr.DataArray) -> xr.DataArray:
     return da
 
 
-# %% code starts here
-# replace with path to file
-subregion = "kilimanjaro"
-
-profile = [
-    ("nodes", "tza_roads_bridges_and_culverts", "masonry_arch_culvert_good"),
-    ("edges", "tza_railway", "mgr_track_open"),
-    ("polygons", "tza_airports", "airport"),
-][0]
-
-geometry, asset, asset_type = profile
-
-hazard = "pluvial"
-epoch = 2020
-scenario = "historical"
-rp = 200
-plot = True
-
-
-# %%
 if __name__ == "__main__":
     # define the asset input files
     risk_file = f"../../results/risk/{geometry}/{asset}/{subregion}.geoparquet"
@@ -143,6 +132,9 @@ if __name__ == "__main__":
     ref = gpd.read_parquet(ref_file).set_index("id").to_crs(epsg=4326)
     print("Available hazards:")
     pprint(get_available_scenarios(risk))
+
+    # quick save to show others
+    risk.drop(columns=["geometry"]).to_csv(f"/Users/alison/Downloads/risk_{geometry}_{asset}_{subregion}.csv", index=False)
 
     print("\nview results a specific hazard column:")
     hazcol = get_hazcol(hazard, epoch, scenario, rp)
