@@ -1,5 +1,5 @@
 import os
-import shutil
+import tqdm
 import logging
 from osgeo import gdal
 from pathlib import Path
@@ -47,7 +47,8 @@ def main(input, output, params):
     
     logging.info("Analysing input rasters...")
     logging.info(f"{input.rasters=}")
-    for raster_path in input.rasters:
+    for raster_path in (pbar := tqdm.tqdm(input.rasters)):
+        pbar.set_postfix({'Checking raster': os.path.basename(raster_path)})
         ds = gdal.Open(raster_path)
         gt = ds.GetGeoTransform()
         
@@ -80,16 +81,28 @@ def main(input, output, params):
     logging.info(f"Target extent: {xmin}, {ymin}, {xmax}, {ymax}")
     
     # Align each raster
-    for raster_path in input.rasters:
+    for raster_path in (pbar := tqdm.tqdm(input.rasters)):
+        pbar.set_postfix({'Aligning raster': os.path.basename(raster_path)})
         basename = os.path.basename(raster_path)
         out_path = os.path.join(output.outdir, basename)
         if rasters_are_aligned(raster_path, (xmin, ymin, xmax, ymax), min_pixel_size):
-            logging.info(f"Already aligned, copying: {basename}")
-            shutil.copy2(raster_path, out_path)
+            logging.info(f"Already aligned, recompressing: {basename}")
+            translate_options = gdal.TranslateOptions(
+                format='GTiff',
+                creationOptions=[
+                    'COMPRESS=ZSTD',
+                    'ZSTD_LEVEL=9',
+                    'PREDICTOR=3',
+                    'TILED=YES',
+                    'BLOCKXSIZE=512',
+                    'BLOCKYSIZE=512',
+                    'BIGTIFF=IF_SAFER',
+                    'NUM_THREADS=ALL_CPUS'
+                ]
+            )
+            gdal.Translate(out_path, raster_path, options=translate_options)
         else:
             logging.info(f"Aligning: {basename}")
-            
-            # Use gdalwarp with specified parameters
             warp_options = gdal.WarpOptions(
                 format='GTiff',
                 dstSRS='EPSG:4326',
@@ -98,7 +111,17 @@ def main(input, output, params):
                 outputBounds=(xmin, ymin, xmax, ymax),
                 targetAlignedPixels=True,
                 resampleAlg='bilinear',
-                creationOptions=['COMPRESS=LZW', 'BIGTIFF=IF_SAFER', 'TILED=YES']
+                outputType=gdal.GDT_Float32,
+                creationOptions=[
+                    'COMPRESS=ZSTD',
+                    'ZSTD_LEVEL=9',
+                    'PREDICTOR=3',
+                    'TILED=YES',
+                    'BLOCKXSIZE=512',
+                    'BLOCKYSIZE=512',
+                    'BIGTIFF=IF_SAFER',
+                    'NUM_THREADS=ALL_CPUS'
+                ]
             )
             
             gdal.Warp(out_path, raster_path, options=warp_options)
@@ -108,7 +131,9 @@ def main(input, output, params):
 
 if __name__ == "__main__":
     logging.basicConfig(
-        format="%(asctime)s %(process)d %(filename)s %(message)s", level=logging.INFO
+        filename=snakemake.log.file,
+        format="%(asctime)s %(process)d %(filename)s %(message)s",
+        level=logging.INFO
     )
     input = snakemake.input
     output = snakemake.output
