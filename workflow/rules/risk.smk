@@ -29,7 +29,7 @@ rule intersect_subregion_hazard:
         damage_curve_dir="../config/damage_curves",
         rehab_cost_dir="../config/rehab_costs",
         protection_dir="../config/design_standards",
-        save_splits=False
+        splits_path=[None, "../results/risk/{asset}_{geom}/{hazard}/{subregion}/splits.geoparquet"][0]
     log:
         file="../logs/risk/intersect_{geom}_{asset}_{subregion}_{hazard}.log"
     script:
