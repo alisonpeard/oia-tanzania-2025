@@ -11,7 +11,7 @@ from utils import naming
 
 def ead(df:pd.DataFrame, method="trapezoid") -> float:
         """Calculate expected annual damage from damage values and return periods."""
-        if df.empty:
+        if df.empty | (df["value"] == 0).all():
             return 0.0
         damages = df["value"].astype(float).values
         rps = df["rp"].astype(float).values
@@ -53,15 +53,13 @@ def main(input, output, params=None):
         risk_tuples.tolist(),
         columns=["metric", "hazard", "epoch", "scenario", "rp", "range"]
     )
-
     risk_gdf = risk_gdf.reset_index(drop=True).join(risk_info)
-
     risk_gdf = risk_gdf.melt(
         id_vars=["metric", "hazard", "epoch", "scenario", "rp", "range"],
         var_name="id"
         )
 
-    risk_gdf = risk_gdf.dropna(subset=["value"])
+    risk_gdf["value"] = risk_gdf["value"].fillna(0.0)
 
     risk_grouped = risk_gdf.groupby(
         ["id", "metric", "hazard", "epoch", "scenario", "range"]
