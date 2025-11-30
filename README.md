@@ -7,6 +7,7 @@ git clone git@github.com:alisonpeard/oia-tanzania-2025.git
 
 2. Create and activate the conda environment:
 ```bash
+cd oia-tanzania-2025
 conda env create -f environment.yaml
 conda activate oia-direct-damages
 ```
