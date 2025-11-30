@@ -11,19 +11,15 @@ from utils import naming
 
 def ead(df:pd.DataFrame, method="trapezoid") -> float:
         """Calculate expected annual damage from damage values and return periods."""
-        if (df["value"] < 0.0).any():
-            raise ValueError("Negative damage values found, cannot compute EAD.")
-
-        df["prob"] = 1.0 / df["rp"].astype(float)
-        df = df.sort_values("prob", ascending=True)
-        df = df.dropna(subset=["value"])
         if df.empty:
             return 0.0
-        probs = df["prob"].astype(float).values
-        damages = df["value"].values
-        probs = np.insert(probs, 0, 0.0)
-        damages = np.insert(damages, 0, 0.0)
-        ead_value = getattr(integrate, method)(damages, probs)
+        damages = df["value"].astype(float).values
+        rps = df["rp"].astype(float).values
+        probs = 1 / rps
+        idx = np.argsort(probs)
+        probs = np.insert(probs[idx], 0, 0.0)
+        damages = np.insert(damages[idx], 0, 0.0)
+        ead_value = getattr(integrate, method)(damages, x=probs)
         return ead_value
 
 
@@ -65,12 +61,14 @@ def main(input, output, params=None):
         var_name="id"
         )
 
+    risk_gdf = risk_gdf.dropna(subset=["value"])
+
     risk_grouped = risk_gdf.groupby(
         ["id", "metric", "hazard", "epoch", "scenario", "range"]
     )[["rp", "value"]]
 
-
-    ead_results = risk_grouped.apply(ead)
+    tqdm.pandas(desc="Calculating EAD")
+    ead_results = risk_grouped.progress_apply(ead)
     ead_results = ead_results.reset_index()
     ead_results = ead_results.rename(columns={0: "expected"})
 

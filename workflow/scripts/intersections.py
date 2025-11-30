@@ -144,8 +144,10 @@ def main(input, output, params):
     design_standards = prepare_design_standards(params.protection_dir, hazards)
 
     if geom_type in ["Point", "MultiPoint"]:
-        raise NotImplementedError("Need to update code for point-processing.")
-        # vector = points.intersect(vector, rasters, damage_curves, rehab_costs, design_standards)
+        vector = points.intersect(
+            vector, rasters, damage_curves, rehab_costs, design_standards,
+            splits_path=params.splits_path
+        )
     elif geom_type in ["LineString", "MultiLineString"]:
         vector = linestrings.intersect(
             vector, rasters, damage_curves, rehab_costs, design_standards,

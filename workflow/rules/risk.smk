@@ -38,9 +38,11 @@ rule intersect_subregion_hazard:
 
 rule check_asset_hazard_exposure:
     """
-    snakemake --cores 4 ../results/flags/tza_railway_edges/pluvial/kilimanjaro.checked
-    snakemake --cores 4 ../results/flags/tza_airports_polygons/pluvial/kilimanjaro.checked
+    Double-check intersection results against input raster.
 
+    snakemake --cores 4 ../results/flags/tza_railway_edges/pluvial/kilimanjaro.checked
+    snakemake --cores 4 ../results/flags/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro.checked
+    snakemake --cores 4 ../results/flags/tza_airports_polygons/pluvial/kilimanjaro.checked
     snakemake --cores 4 ../results/flags/tza_railway_edges/pluvial/shinyanga.checked
     """
     input:
@@ -67,20 +69,10 @@ def all_subregion_flags(wildcards):
         subregion=subregions
     )
 
-
-rule check_results_for_all_subregions:
-    """
-    snakemake --cores 4 ../results/flags/tza_railway_edges/pluvial.checked -n
-    """
-    input:
-        all_subregion_flags
-    output:
-        touch("../results/flags/{asset}_{geom}/{hazard}.checked")
-
-
-rule calculate_expected_metrics:
+rule calculate_annual_metrics:
     """
     snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro/annual.parquet
+    snakemake --cores 4 ../results/risk/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro/annual.parquet
     """
     input:
         vector="../results/risk/{asset}_{geom}/{hazard}/{subregion}/profile.geoparquet"

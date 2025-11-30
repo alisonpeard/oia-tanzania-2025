@@ -15,9 +15,7 @@ from osgeo import gdal
 import numpy as np
 import tempfile
 
-
-def get_hazard_from_colname(hazcol):
-    return hazcol.split("_")[0].split('-')[1]
+from utils import naming
 
 
 def make_raster_basenames(raster_files):
@@ -26,24 +24,6 @@ def make_raster_basenames(raster_files):
         basename = Path(raster_path).stem
         raster_basenames.append(basename)
     return raster_basenames
-
-
-def create_multiband_vrt(raster_files: list[str], output_dir: str = None):
-    """
-    Create a multi-band VRT from a list of raster files.
-    """
-    if output_dir is None:
-        logging.warning("No output directory specified, using current directory.")
-        output_dir = "."
-
-    output_vrt = Path(output_dir) / "hazard_stack.vrt"
-    vrt_options = gdal.BuildVRTOptions(separate=True)
-
-    _vrt = gdal.BuildVRT(str(output_vrt), raster_files, options=vrt_options)
-    _vrt = None
-    
-    logging.info(f"Created multi-band VRT with {len(raster_files)} bands at {output_vrt}")
-    return str(output_vrt)
 
 
 def grid_from_window(raster_file, bounds, verbose=False) -> snint.GridDefinition:
@@ -93,6 +73,23 @@ def process_raster_grid(
     return grid, window
 
 
+def create_multiband_vrt(raster_files: list[str], output_dir: str = None):
+    """
+    Create a multi-band VRT from a list of raster files.
+    """
+    if output_dir is None:
+        logging.warning("No output directory specified, using current directory.")
+        output_dir = "."
+
+    output_vrt = Path(output_dir) / "hazard_stack.vrt"
+    vrt_options = gdal.BuildVRTOptions(separate=True)
+
+    _vrt = gdal.BuildVRT(str(output_vrt), raster_files, options=vrt_options)
+    _vrt = None
+    
+    logging.info(f"Created multi-band VRT with {len(raster_files)} bands at {output_vrt}")
+    return str(output_vrt)
+
 
 def copy_raster_values_multiband(
     vector_splits: gpd.GeoDataFrame, 
@@ -115,8 +112,6 @@ def copy_raster_values_multiband(
             data = src.read(masked=True)
         
         logging.info(f"Read {data.shape[0]} bands from VRT")
-
-        window_transform = rasterio.windows.transform(window, src.transform)
         
         for band_idx, basename in enumerate(tqdm(raster_basenames, desc="Extracting values")):
             colname = f"hazard-{basename}"
@@ -131,7 +126,7 @@ def copy_raster_values_multiband(
     return vector_splits
 
 
-def vectorized_damage_calculation(
+def vectorised_damage_calculation(
     defended_values: np.ndarray,
     damage_function: callable,
     unit_values: np.ndarray
@@ -184,6 +179,7 @@ def intersect(
 
     assert len(rasters) > 0, "No rasters provided for intersection."
 
+    logging.info("Constructing grid from rasters...")
     grid, window = process_raster_grid(rasters, vector)
     raster_basenames = make_raster_basenames(rasters)
 
@@ -202,7 +198,7 @@ def intersect(
     vector_splits["unit"] = vector_splits.geometry.apply(geod.geometry_length)
     vector_splits["unit_type"] = "m"
     
-    # make a temporary muli-band VRT
+    # make a temporary multi-band VRT
     with tempfile.TemporaryDirectory() as temp_dir:
         vrt_path = create_multiband_vrt(rasters, output_dir=temp_dir)
         vector_splits = copy_raster_values_multiband(
@@ -225,7 +221,7 @@ def intersect(
 
         for hazard_col in (pbar_haz := tqdm(hazard_cols, leave=False)):
             pbar_haz.set_postfix({'Processing hazard_col': hazard_col})
-            hazard = get_hazard_from_colname(hazard_col)
+            hazard = naming.get_hazard_from_colname(hazard_col)
 
             design_standard_df = design_standards[hazard]
             design_hazard: str = design_standard_df.loc[asset_type, "design_hazard"]
@@ -254,6 +250,7 @@ def intersect(
                     f"for '{asset_type}'.\n"
                 )
             
+            # start vectorised damage and cost calculations
             defended_array = new_columns[defended_col]
             unit_array = vector_asset["unit"].values
             
@@ -261,7 +258,7 @@ def intersect(
                 damage_function = damage_curves[(hazard, asset_type)][suffix]
                 damage_col = defended_col.replace("defended-", "damage-") + "_" + suffix
                 
-                damage_binary, damage_frac = vectorized_damage_calculation(
+                damage_binary, damage_frac = vectorised_damage_calculation(
                     defended_array, damage_function, unit_array
                 )
                 
