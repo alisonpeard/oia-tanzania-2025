@@ -12,9 +12,9 @@ def get_subregions():
 
 rule intersect_subregion_hazard:
     """
-    snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro.geoparquet
-    snakemake --cores 4 ../results/risk/tza_airports_polygons/pluvial/kilimanjaro.geoparquet
-    snakemake --cores 4 ../results/risk/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro.geoparquet
+    snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro/profile.geoparquet
+    snakemake --cores 4 ../results/risk/tza_airports_polygons/pluvial/kilimanjaro/profile.geoparquet
+    snakemake --cores 4 ../results/risk/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro/profile.geoparquet
     """
     input:
         asset_dir="../results/assets/{asset}_{geom}",
@@ -80,7 +80,7 @@ rule check_results_for_all_subregions:
 
 rule calculate_expected_metrics:
     """
-    snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro/expected.parquet
+    snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro/annual.parquet
     """
     input:
         vector="../results/risk/{asset}_{geom}/{hazard}/{subregion}/profile.geoparquet"
