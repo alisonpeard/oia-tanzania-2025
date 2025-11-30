@@ -26,7 +26,6 @@ rule align_hazard_rasters:
         rasters=get_all_input_hazards,
     output:
         outdir=directory("../results/hazards/aligned")
-        # outdir=directory(os.path.join(config["outputs"], "hazards", "aligned"))
     log:
         file="../logs/hazards/align_rasters.log"
     script:

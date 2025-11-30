@@ -1,10 +1,3 @@
-## To do
-
-- Tidy README
-- Add EAD calculation code
-- Test with cyclone and landslide hazard data
-- Add some basic figures
-
 ## Quickstart
 
 Clone the repository:
@@ -17,75 +10,44 @@ Make a conda environment from the provided `environment.yaml` file:
 
 ```bash
 conda env create -f environment.yaml
-conda activate oia-tanzania-2025
+conda activate oia-direct-damages
 ```
 
+Download the input data from the shared drive and place it somewhere local.
+
+Change `workflow/config.yaml` and set the `inputs` key to point to your local folder for input data. In that folder place:
+
+- Vector asset files
+    - `{inputs}/assets/{asset}_{geom}.parquet`
+- Admin boundary files
+    - `{inputs}/admin/tza_admin_{level}.gpkg`
+- Hazard raster files
+    - `{inputs}/hazards/{hazard}_{epoch}_{scenario}_rp{rp}.tif`
+    - Copy-paste these to `results/hazards/aligned/`
+
+Run all intersections and damage calculations for the pluvial flood hazard on the Tanzania road edges asset (with `-n` flag for a dry run):
+
+```bash
+snakemake --cores 4 ../results/flags/tza_railway_edges/pluvial/.processed -n
+```
 
 ---
 
-## Clean up below here
-
-Set up input data as described in the [Input data](#input-data) section below and set up configuration data as described in the [Config data](#config-data) section below.
-
-
-The following code will intersect an asset (vector in `results/input/assets`) with all hazard scenarios (all rasters in `results/input/hazards/`)
-and compute damage and rehabilitation costs.
-
-E.g., for roads in Tanzania, `tza_road`:
-
-```bash
-snakemake --cores 4 ../results/damage_costs/tza_road/.all
-```
-
-The outputs geoparquet files in `results/damages/final` for each subregion, with the following format:
-
-| id | hazard-{scenarios} | damage-{scenarios} | cost-{scenarios} | unit | unit_type | geometry |
-|-----|--------------------|--------------------|------------------|----------|----------|----------|
-| ... | float32            | float32            | float32          | float32 | str |  geometry |
-
-
-
-## Config data
-
-## Input data
-
-In `config.yaml`, set a key to point to your local folder for input data, e.g.,
-
-```yaml
-inputs: /path/to/your/local/inputs
-```
-
-### Admin boundaries
-
-Admin boundaries should be placed in `results/input/admin` with name format:
-
-```
-{country}_admin_{level}.gpkg
-```
-
-where:
-- `country`: country code, e.g., `tza`
-- `level`: admin level, e.g., `00`, `01`, `02`
-
-
 ### Assets
 
-Assets should be placed in `results/input/assets` with name format:
-
-```
-`/results/input/assets/{geom}/{asset}/{subregion}.geoparquet`
-```
-where:
+Assets should be placed in `{input}/assets/` with name format: `{asset}_{geom}.parquet` where:
 - `geom`: geometry type, e.g., `nodes`, `edges`, `polygon`
 - `asset`: asset type, e.g., `tza_airports`, `tza_railway`
 - `subregion`: subregion name from admin file, e.g., `dar_es_salaam`
 
-Scripts and rules to process raw asset data into this format can be found in `rules/assets.smk` and `analysis/scripts/process_assets/`.
-
+These are pre-processed by the rules in `rules/assets.smk` to have the following requirements:
+- Have a single geometry type per asset, e.g., LineString, Polygon, Point (no MultiLineStrings)
+- Have WGS84 projection
+- Have three columns: (unique) `id`, `asset_type`, `unit`, `unit_type`, `geometry`. The `asset_type` column should matches naming for damage curves and rehab costs
 
 ### Hazards
 
-Hazards should be placed in `results/hazards/input` with name format:
+Hazards are pre-processed because it took ages. Pre-processed hazards should be placed in `results/hazards/aligned/` with name format:
 
 ```
 {hazard}_{epoch}_{scenario}_rp{rp}.tif
@@ -98,90 +60,19 @@ where:
 - `scenario`: climate scenario (e.g., `historical`, `ssp245`, `ssp585`)
 - `rp`: return period (e.g., `00010`, `00050`, `00100`).
 
-Hazard rasters should have WGS84 projection and have proper `NoData` values defined.
-
-If you have hazards stored in your local inputs folder in a different format, you can create rules to process them into the standardised format in `results/input/hazards`. For example, to process Fathom flood data, see the `rules/hazards/fathom.smk` file.
-
-These rules should be run before the main damage estimation workflow. For example, to process all historical Fathom flood data, run:
-
-```bash
-snakemake --cores 4 --rerun-incomplete -- fathom_all_historical
-```
+Hazard rasters should have WGS84 projection and have proper `NoData` values defined. Rules to pre-process hazard rasters are in `rules/hazards` and the rule to align all the pre-processed hazards to a common grid is in `rules/hazards.smk`.
 
 ---
 
-Store all input data somewhere local and set `inputs` in `config.yaml` to point to that location. For each new hazard or asset dataset, create a rule and script to process it into the standardised format in `results/input` and place them in the `hazards` or `assets` folders respectively. It doesn't matter how these are coded as long as their outputs have the correct format and location for the workflow. Processing can also be done externally, and the files simply placed in the correct location in `results/input`.
 
-Data stored in `results/input` should have the following format:
-
-
-The `{hazard}` wildcard must match the hazard names used to classify damage curves and rehabilitation costs. Asset files have the following requirements:
-- Have a single geometry type per asset, e.g., LineString, Polygon, Point (no MultiLineStrings)
-- Have WGS84 projection
-- Have three columns: (unique) `id`, `asset_type` and `geometry`. `asset_type` column that matches naming for damage curves and rehab costs
-
-Hazard rasters must have properly defined NoData values.
-
-To do the damage estimations, the workflow uses damage curves and rehabilitation costs stored in `config/damage_curves` and `config/rehab_costs`. These should be organised as follows:
+The workflow uses damage curves, design standards, and rehabilitation costs stored in `config/damage_curves`, `config/design_standards` and `config/rehab_costs`. These should be organised as follows:
 
 | Data type       | Format       | Location                                      |
 |-----------------|--------------|-----------------------------------------------|
 | Damage curves  | CSV          | `config/damage_curves/{hazard}/{asset_type}.csv` |
+| Design standards  | CSV          | `config/design_standards/{hazard}.csv` |
 | Rehabilitation costs | CSV     | `config/damage_curves/{hazard}.csv`|
 
-Rehabilitation costs are indexed by `asset_type`.
+Rehabilitation costs and design standards are indexed by `asset_type`.
 
-For damage curves, have an `intensity` column, then three columns for damage fractions: `damage_fraction_max`, `damage_fraction_min`, `damage_fraction_mean`. Use commenting `#` to note the units of intensity. Costs are specified in `costs_per_unit` with a separate `unit_type` column indicating `m` (LineStrings) or `sqm` (Polygons) or `unit` (Points). Example processing scripts to get input costs and curves into the right format are in `analysis/scripts/`.
-
-Use '#' to mark comment lines in the CSV files.
-
-## Notes on datasets
-
-Available scenarios for all hazard types.
-
-| Hazard | Epochs | Scenarios | Return periods |
-|--------|--------|-----------|----------------|
-| Fathom | | | |
-| Cyclone | | | |
-| Landslides | | | |
-| Heat | | | |
-
-### Fathom flood data [outdated, need to update]
-
-The Fathom data is provided in 1° rasters, in separate (nested) folders for each flood-driver, time horizon, climate scenario, and return period. Original files are in 1 arc second resolution (~30 m), which is very high and slow, we resample to 3 arc second (~90 m) for processing efficiency.
-
-Input tiles should be organised as follows:
-
-```bash
-fathom/{floodtype}/{epoch}/{scenario}/1in{rp}/*.tif
-```
-
-with categories
-
-| Variable   | Values (TBC)              |
-|------------|---------------------------|
-| flood type | pluvial, fluvial, coastal |
-| epoch      | 2020, 2050, 2080          |
-| scenario   | historical, SSP2-4p5, SSP5-8p5 |
-| return period (rp) | 00005, 00010, 00100, 00200, 00500, 01000 |
-
-To process them with open-gira, run:
-
-```bash
-snakemake --rerun-incomplete --cores 6 -- fathom_all_historical
-snakemake --rerun-incomplete --cores 6 -- fathom_all_scenario
-```
-
-### STORM Cyclone data
-
-Currently have historical and 2080 RCP 8.5 data from 2--3 different models. We need to decide how to combine these. Perhaps by min, max, and medians estimats?
-
-### Asset datasets
-
-Stored in geoparquet format. Some projections need to be aligned.
-
-<img src="analysis/figures/inputs/tza_road_network.png" height="200" /> <img src="analysis/figures/inputs/tza_railway_network.png" height="200" /> <img src="analysis/figures/inputs/tza_maritime_ports_network.png" height="200" />
-
-#### References
-
-[CCDR-Somalia repository](https://github.com/alisonpeard/oia-somalia-2025)
+Damage curves, have an `intensity` column, then three columns for damage fractions: `damage_fraction_max`, `damage_fraction_min`, `damage_fraction_mean`. Use commenting `#` to note the units of intensity. Costs are specified in `costs_per_unit` with a separate `unit_type` column indicating `m` (LineStrings) or `sqm` (Polygons) or `unit` (Points). Example processing scripts to get input costs and curves into the right format are in `analysis/scripts/`.
