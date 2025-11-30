@@ -98,8 +98,22 @@ def all_subregions(wildcards):
 rule all_results_for_asset_and_hazard:
     """
     snakemake --cores 4 ../results/flags/tza_railway_edges/pluvial/.processed -n
+    snakemake --cores 4 ../results/flags/tza_roads_bridges_and_culverts_nodes/pluvial/.processed -n
     """
     input:
         all_subregions
     output:
         touch("../results/flags/{asset}_{geom}/{hazard}/.processed")
+
+
+rule all_intersections_for_asset:
+    """
+    snakemake --cores 4 all_intersections_for_asset -n
+    """
+    input:
+        expand(
+            "../results/flags/{asset_geom}/{hazard}/.processed",
+            asset_geom=["tza_roads_bridges_and_culverts_nodes"],
+            # asset_geom=["tza_railway_edges"],
+            hazard=["pluvial", "fluvial", "coastal", "landslide", "cyclone"]
+        )
