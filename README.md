@@ -24,6 +24,7 @@ conda activate oia-direct-damages
 
 6. Run all intersections and damage calculations for the pluvial flood hazard on the Tanzania road edges asset (add `-n` flag for dry run):
 ```bash
+cd workflow
 snakemake --cores 4 ../results/flags/tza_railway_edges/pluvial/.processed -n
 ```
 
