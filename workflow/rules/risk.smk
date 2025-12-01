@@ -108,18 +108,18 @@ rule all_results_for_asset_and_hazard:
         touch("../results/flags/{asset}_{geom}/{hazard}/.processed")
 
 
-rule all_intersections_for_asset:
+rule all_intersections:
     """
-    snakemake --cores 1 all_intersections_for_asset -n
+    snakemake --cores 1 all_intersections -n
     """
     input:
         expand(
             "../results/flags/{asset_geom}/{hazard}/.processed",
             asset_geom=[
-                # "tza_roads_edges", "tza_railway_edges",
-                # "tza_roads_bridges_and_culverts_nodes",
+                "tza_roads_edges", "tza_railway_edges",
+                "tza_roads_bridges_and_culverts_nodes",
                 "tza_airports_polygons",
-                # "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
+                "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
             ],
             hazard=["pluvial", "fluvial", "coastal", "landslide", "cyclone"]
         )
