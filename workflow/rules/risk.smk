@@ -110,7 +110,7 @@ rule all_results_for_asset_and_hazard:
 
 rule all_intersections_for_asset:
     """
-    snakemake --cores 4 all_intersections_for_asset -n
+    snakemake --cores 1 all_intersections_for_asset -n
     """
     input:
         expand(

@@ -31,13 +31,24 @@ def make_window(vector:gpd.GeoDataFrame, raster:str) -> rasterio.windows.Window:
 
 def calculate_raster_cell_areas(raster_path, window=None) -> np.ndarray:
     """Calculate the area of each cell in a raster."""
+    logging.info(f"Calculating raster cell areas for {raster_path}")
     with rasterio.open(raster_path) as src:
-        transform = src.transform
-        height = src.height
+        if window is not None:
+            transform = rasterio.windows.transform(window, src.transform)
+            height = window.height
+            width = window.width
+            row_offset = int(window.row_off)
+        else:
+            transform = src.transform
+            height = src.height
+            width = src.width
+            row_offset = 0
+        
         geod = Geod(ellps="WGS84")
         
         areas_col = np.zeros(height)
         for row in range(height):
+            actual_row = row_offset + row
             x_min, y_max = transform * (0, row)
             x_max, y_min = transform * (1, row + 1)
             area, _ = geod.polygon_area_perimeter(
@@ -46,7 +57,7 @@ def calculate_raster_cell_areas(raster_path, window=None) -> np.ndarray:
             )
             areas_col[row] = abs(area)
         
-        return np.tile(areas_col[:, np.newaxis], (1, src.width))
+        return np.tile(areas_col[:, np.newaxis], (1, width))
     
 
 def get_design_standard_raster_path(design_standard:str, rasters:list[str]) -> str | None:
@@ -69,7 +80,7 @@ def prepare_hazard(hazard, design_hazard, window=None):
                 residual = np.ma.masked_where(residual < 0, residual)
     else:
         with rasterio.open(hazard) as hazard_src:
-            hazard_data = hazard_src.read(1, masked=True)
+            hazard_data = hazard_src.read(1, window=window, masked=True)
             residual = hazard_data.copy()
 
     return hazard_data, residual
@@ -82,39 +93,14 @@ def create_mega_raster(
         output_dir: str = None,
         window: rasterio.windows.Window = None
     ):
+    logging.info(f"Creating multi-band VRT for asset type: {asset_type}")
     if output_dir is None:
         logging.warning("No output directory specified, using current directory.")
         output_dir = "."
     
     output_tif = Path(output_dir) / f"hazards_{asset_type}.tif"
 
-    bands = []
-    band_keys = {}
-    counter = 1
-    for raster in rasters:
-        # extract hazard and hazard column name from raster file path
-        hazard_col = f"hazard-{Path(raster).stem}"
-        defended_col = f"defended-{Path(raster).stem}"
-        hazard = naming.get_hazard_from_colname(hazard_col)
-
-        # check if design standards specified for this (hazard, asset_type)
-        design_standard_df = design_standards[hazard]
-        design_standard: str = design_standard_df.loc[asset_type, "design_hazard"]
-        design_hazard: str = get_design_standard_raster_path(design_standard, rasters)
-
-        # load hazard and calculate defended hazard
-        hazard_tmp, defended_tmp = prepare_hazard(
-            raster, design_hazard=design_hazard, window=window
-        )
-
-        # store bands and mapping
-        bands.append(hazard_tmp)
-        bands.append(defended_tmp)
-        band_keys[hazard_col] = counter
-        band_keys[defended_col] = counter + 1
-        counter += 2
-
-    # load profile from first raster
+    # prepate profile using first raster
     with rasterio.open(rasters[0]) as src:
         profile = src.profile.copy()
         if window:
@@ -122,15 +108,41 @@ def create_mega_raster(
                 "height": window.height,
                 "width": window.width,
                 "transform": rasterio.windows.transform(window, src.transform),
-                "count": len(bands)
+                "count": len(rasters) * 2
             })
 
-    # save multi-band tif
-    with rasterio.open(output_tif, 'w', **profile) as dst:
-        for i, band in enumerate(bands, 1):
-            dst.write(band, i)
+    counter = 1
+    band_keys = {}
 
-    logging.info(f"Created multi-band VRT with {len(bands)} bands at {output_tif}")
+    with rasterio.open(output_tif, 'w', **profile) as dst:
+        for raster in (pbar := tqdm(rasters, desc="Creating mega raster")): # ! ballooning memory
+            pbar.set_postfix({"raster": raster})
+            # extract hazard and hazard column name from raster file path
+            hazard_col = f"hazard-{Path(raster).stem}"
+            defended_col = f"defended-{Path(raster).stem}"
+            hazard = naming.get_hazard_from_colname(hazard_col)
+
+            # check if design standards specified for this (hazard, asset_type)
+            design_standard_df = design_standards[hazard]
+            design_standard: str = design_standard_df.loc[asset_type, "design_hazard"]
+            design_hazard: str = get_design_standard_raster_path(design_standard, rasters)
+
+            # load hazard and calculate defended hazard
+            hazard_tmp, defended_tmp = prepare_hazard(
+                raster, design_hazard=design_hazard, window=window
+            )
+
+            # store bands and mapping
+            band_keys[hazard_col] = counter
+            band_keys[defended_col] = counter + 1
+
+            # write to multi-band tif
+            dst.write(hazard_tmp, counter)
+            dst.write(defended_tmp, counter + 1)
+
+            counter += 2
+
+    logging.info(f"Created multi-band VRT with {counter - 1} bands at {output_tif}")
 
     return str(output_tif), band_keys
 
@@ -225,8 +237,6 @@ def intersect(
         new_columns = {} # gather new columns in dict for performance
 
         ops = ["max"]
-        damage_cols = []
-        cost_cols = []
         # create damage and cost operations
         for suffix in ["min", "mean", "max"]:
             damage_function = damage_curves[(hazard, asset_type)][suffix]
@@ -237,6 +247,7 @@ def intersect(
             ops.extend([damage, cost])
 
         with tempfile.TemporaryDirectory() as tmpdir:
+            logging.info(f"Using temporary directory: {tmpdir}")
             # make mega-raster
             hazard_tmp, band_keys = create_mega_raster(
                 rasters, asset_type, design_standards,
@@ -273,6 +284,7 @@ def intersect(
             vector_asset = pd.concat([vector_asset, new_columns_df], axis=1)
             asset_type_damages.append(vector_asset)
 
+    logging.info("Deleted temporary directory and files.")
     # pull it all together
     vector = pd.concat(asset_type_damages, axis=0)
     
