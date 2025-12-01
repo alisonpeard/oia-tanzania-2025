@@ -154,8 +154,9 @@ def main(input, output, params):
             splits_path=params.splits_path
         )
     elif geom_type in ["Polygon", "MultiPolygon"]:
-        raise NotImplementedError("Need to update code for polygon-processing.")
-        # vector = polygons.intersect(vector, rasters, damage_curves, rehab_costs, design_standards, splits_path=params.splits_path)
+        vector = polygons.intersect(
+            vector, rasters, damage_curves, rehab_costs, design_standards,
+            splits_path=params.splits_path)
     else:
         raise ValueError(f"Unknown geometry type {geom_type}.")
         

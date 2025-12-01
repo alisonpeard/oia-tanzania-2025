@@ -1,12 +1,7 @@
 """
 Note: this is pretty different to the usual snail intersections method. exactextract is 
-really fast but needs a very different setup. The splits are made and deleted on the fly.
-
-To do
-- make one mega-raster so I don't have to loop through hazards. Should make it way faster.
-- need to map all rasters to band numbers
+really fast but needs a very different setup. The splits cannot be saved here.
 """
-
 import os
 import tempfile
 from pathlib import Path
@@ -18,29 +13,23 @@ from pyproj import Geod
 import rasterio
 from exactextract import exact_extract
 from tqdm import tqdm
+from osgeo import gdal
 import logging
 
-
-def get_hazard_from_colname(hazcol):
-    return hazcol.split("_")[0].split('-')[1]
+from utils import naming
 
 
-def write_raster(w:np.ndarray, src:rasterio.DatasetReader, outpath:str):
-    with rasterio.open(
-        outpath, 'w',
-        driver='GTiff',
-        height=w.shape[0],
-        width=w.shape[1],
-        count=1,
-        dtype=w.dtype,
-        crs=src.crs,
-        transform=src.transform,
-    ) as dst:
-        dst.write(w, 1)
+def make_window(vector:gpd.GeoDataFrame, raster:str) -> rasterio.windows.Window:
+    with rasterio.open(raster) as src:
+        bounds = vector.total_bounds  # (minx, miny, maxx, maxy)
+        window = rasterio.windows.from_bounds(
+            bounds[0], bounds[1], bounds[2], bounds[3],
+            transform=src.transform
+        ).round()
+    return window
 
 
-
-def calculate_raster_cell_areas(raster_path):
+def calculate_raster_cell_areas(raster_path, window=None) -> np.ndarray:
     """Calculate the area of each cell in a raster."""
     with rasterio.open(raster_path) as src:
         transform = src.transform
@@ -58,9 +47,9 @@ def calculate_raster_cell_areas(raster_path):
             areas_col[row] = abs(area)
         
         return np.tile(areas_col[:, np.newaxis], (1, src.width))
+    
 
-
-def get_design_standard_raster_path(design_standard, rasters):
+def get_design_standard_raster_path(design_standard:str, rasters:list[str]) -> str | None:
     """Check raster list for design standard raster matching the design_standard stem."""
     for r in rasters:
         if Path(r).stem == design_standard:
@@ -68,14 +57,14 @@ def get_design_standard_raster_path(design_standard, rasters):
     return None
 
 
-def prepare_hazard(outfile, hazard, design_hazard=None):
+def prepare_hazard(hazard, design_hazard, window=None):
     """Create a two-band raster with original hazard and residual
     hazard (hazard - design standard)."""
     if design_hazard is not None:
         with rasterio.open(design_hazard) as design_src:
             with rasterio.open(hazard) as hazard_src:
-                design_data = design_src.read(1, masked=True)
-                hazard_data = hazard_src.read(1, masked=True)
+                design_data = design_src.read(1, window=window, masked=True)
+                hazard_data = hazard_src.read(1, window=window, masked=True)
                 residual = hazard_data - design_data
                 residual = np.ma.masked_where(residual < 0, residual)
     else:
@@ -83,21 +72,80 @@ def prepare_hazard(outfile, hazard, design_hazard=None):
             hazard_data = hazard_src.read(1, masked=True)
             residual = hazard_data.copy()
 
-    with rasterio.open(hazard) as src:
-        with rasterio.open(
-            outfile, 'w',
-            driver='GTiff',
-            height=hazard_data.shape[0],
-            width=hazard_data.shape[1],
-            count=2,
-            dtype=hazard_data.dtype,
-            crs=src.crs,
-            transform=src.transform,
-        ) as dst:
-            dst.write(hazard_data, 1)
-            dst.write(residual, 2)
+    return hazard_data, residual
+
+
+def create_mega_raster(
+        rasters: list[str],
+        asset_type: str,
+        design_standards: dict,
+        output_dir: str = None,
+        window: rasterio.windows.Window = None
+    ):
+    if output_dir is None:
+        logging.warning("No output directory specified, using current directory.")
+        output_dir = "."
     
-    return None
+    output_tif = Path(output_dir) / f"hazards_{asset_type}.tif"
+
+    bands = []
+    band_keys = {}
+    counter = 1
+    for raster in rasters:
+        # extract hazard and hazard column name from raster file path
+        hazard_col = f"hazard-{Path(raster).stem}"
+        defended_col = f"defended-{Path(raster).stem}"
+        hazard = naming.get_hazard_from_colname(hazard_col)
+
+        # check if design standards specified for this (hazard, asset_type)
+        design_standard_df = design_standards[hazard]
+        design_standard: str = design_standard_df.loc[asset_type, "design_hazard"]
+        design_hazard: str = get_design_standard_raster_path(design_standard, rasters)
+
+        # load hazard and calculate defended hazard
+        hazard_tmp, defended_tmp = prepare_hazard(
+            raster, design_hazard=design_hazard, window=window
+        )
+
+        # store bands and mapping
+        bands.append(hazard_tmp)
+        bands.append(defended_tmp)
+        band_keys[hazard_col] = counter
+        band_keys[defended_col] = counter + 1
+        counter += 2
+
+    # load profile from first raster
+    with rasterio.open(rasters[0]) as src:
+        profile = src.profile.copy()
+        if window:
+            profile.update({
+                "height": window.height,
+                "width": window.width,
+                "transform": rasterio.windows.transform(window, src.transform),
+                "count": len(bands)
+            })
+
+    # save multi-band tif
+    with rasterio.open(output_tif, 'w', **profile) as dst:
+        for i, band in enumerate(bands, 1):
+            dst.write(band, i)
+
+    logging.info(f"Created multi-band VRT with {len(bands)} bands at {output_tif}")
+
+    return str(output_tif), band_keys
+
+
+def check_single_hazard_type(rasters: list[str]):
+    hazard_types = set()
+    for r in rasters:
+        hazard = naming.get_hazard_from_filename(r)
+        hazard_types.add(hazard)
+    if len(hazard_types) != 1:
+        raise ValueError(
+            f"intersections.py should filter to one hazard type. "
+            f"Received: {hazard_types}"
+    )
+    return hazard_types.pop()
 
 
 def _damaged_units(x, c, w, damage_function):
@@ -129,105 +177,111 @@ def _rehab_cost(x, c, w, damage_function, cost):
     return np.sum(damage_cost)
 
 
-def make_damage_op(damage_function, damage_col):
+def make_damage_op(damage_function, suffix):
     """Factory function to create damage function for exact_extract."""
     def damage(x, c, w):
         return _damaged_units(x, c, w, damage_function=damage_function)
-    damage.__name__ = damage_col
+    damage.__name__ = "damage_" + suffix
     return damage
 
 
-def make_rehab_cost_op(damage_function, cost, cost_col):
+def make_rehab_cost_op(damage_function, cost, suffix):
     """Factory function to create rehab cost function for exact_extract."""
     def rehab_cost(x, c, w):
         return _rehab_cost(x, c, w, damage_function=damage_function, cost=cost)
-    rehab_cost.__name__ = cost_col
+    rehab_cost.__name__ = "cost_" + suffix
     return rehab_cost
 
 
-def intersect(vector, rasters, damage_curves, rehab_costs, design_standards) -> gpd.GeoDataFrame:
+def write_raster(
+        w:np.ndarray, src:rasterio.DatasetReader, outpath:str,
+        window:rasterio.windows.Window=None
+    ):
+    """Write a single-band raster from array w, using src for profile."""
+    profile = src.profile.copy()
+    if window:
+        profile.update({
+            "height": window.height,
+            "width": window.width,
+            "transform": rasterio.windows.transform(window, src.transform),
+            "count": 1
+        })
+    with rasterio.open(outpath, 'w', **profile) as dst:
+        dst.write(w, 1)
+
+
+def intersect(
+        vector, rasters, damage_curves, rehab_costs, design_standards,
+        splits_path: str = None) -> gpd.GeoDataFrame:
+    hazard = check_single_hazard_type(rasters)
+    window = make_window(vector, rasters[0])
 
     areas = calculate_raster_cell_areas(rasters[0])
     asset_types = list(vector["asset_type"].unique())
-    asset_type_damages = []
+    asset_type_damages = [] # gather results for each asset type
 
     for asset_type in asset_types:
         vector_asset = vector[vector["asset_type"] == asset_type].copy()
         new_columns = {} # gather new columns in dict for performance
-        for raster in rasters:
-            # extract hazard and hazard column name from raster file path
-            hazard_col = f"hazard-{Path(raster).stem}"
-            defended_col = f"defended-{Path(raster).stem}"
-            hazard = get_hazard_from_colname(hazard_col)
 
-            # check if design standards specified for this (hazard, asset_type)
-            design_standard_df = design_standards[hazard]
-            design_standard: str = design_standard_df.loc[asset_type, "design_hazard"]
-            design_hazard = get_design_standard_raster_path(design_standard, rasters)
+        ops = ["max"]
+        damage_cols = []
+        cost_cols = []
+        # create damage and cost operations
+        for suffix in ["min", "mean", "max"]:
+            damage_function = damage_curves[(hazard, asset_type)][suffix]
+            rehab_cost = rehab_costs[hazard].loc[asset_type, f"{suffix}_cost_usd"]
 
+            damage = make_damage_op(damage_function, suffix)
+            cost = make_rehab_cost_op(damage_function, rehab_cost, suffix)
+            ops.extend([damage, cost])
 
-            with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # make mega-raster
+            hazard_tmp, band_keys = create_mega_raster(
+                rasters, asset_type, design_standards,
+                output_dir=tmpdir, window=window
+            )
 
-                hazard_tmp = os.path.join(tmpdir, "hazard.tif")
-                asset_tmp = os.path.join(tmpdir, "asset.shp")
-                weight_tmp = os.path.join(tmpdir, "weights.tif")
+            # save assets and weights to tempdir
+            asset_tmp = os.path.join(tmpdir, "asset.shp")
+            weight_tmp = os.path.join(tmpdir, "weights.tif")
+            vector_asset[['id', 'geometry']].to_file(asset_tmp)
+            with rasterio.open(rasters[0]) as src:
+                write_raster(areas, src, weight_tmp)
 
-                # save asset shapefile and weights raster
-                vector_asset[['id', 'geometry']].to_file(asset_tmp)
-                with rasterio.open(raster) as src:
-                    write_raster(areas, src, weight_tmp)
+            hazard_stats = exact_extract(
+                hazard_tmp, asset_tmp, ops,
+                weights=weight_tmp,
+                progress=True, output="pandas"
+            )
 
-                # save a 2-band raster with protected and unprotected hazard
-                prepare_hazard(hazard_tmp, raster, design_hazard=design_hazard)
+            for column, band in band_keys.items():
+                new_columns[column] = hazard_stats[f"band_{band}_max"].astype(float).values
+                if column.startswith("hazard-"):
+                    continue
+                elif column.startswith("defended-"):
+                    for suffix in ["min", "mean", "max"]:
+                        damage_col = column.replace("defended-", "damage-") + "_" + suffix
+                        cost_col = damage_col.replace("damage-", "cost-") + "_" + suffix
+                        damage_band = "band_" + str(band) + "_weight_damage_" + suffix
+                        cost_band = "band_" + str(band) + "_weight_cost_" + suffix
+                        new_columns[damage_col] = hazard_stats[damage_band].astype(float).values
+                        new_columns[cost_col] = hazard_stats[cost_band].astype(float).values
 
-                # loop through damage functions and rehab costs
-                ops = ["max"]
-                damage_cols = []
-                cost_cols = []
+            new_columns_df = pd.DataFrame(new_columns, index=vector_asset.index)
+            vector_asset = pd.concat([vector_asset, new_columns_df], axis=1)
+            asset_type_damages.append(vector_asset)
 
-                for prefix in ["min", "mean", "max"]:
-                    damage_function = damage_curves[(hazard, asset_type)][prefix]
-                    damage_col = hazard_col.replace("hazard-", "damage-") + "_" + prefix
-
-                    # for prefix in ["min", "mean", "max"]:
-                    # NOTE: option to have 9 combinations but 3 should be enough
-                    cost = rehab_costs[hazard].loc[asset_type, f"{prefix}_cost_usd"]
-                    cost_col = damage_col.replace("damage-", "cost-") + "_" + prefix
-
-                    damage = make_damage_op(damage_function, damage_col)
-                    rehab_cost = make_rehab_cost_op(damage_function, cost, cost_col)
-
-                    ops.extend([damage, rehab_cost])
-
-                    damage_cols.append(damage_col)
-                    cost_cols.append(cost_col)
-                        
-                hazard_stats = exact_extract(
-                    hazard_tmp, asset_tmp, ops,
-                    weights=weight_tmp,
-                    progress=True, output="pandas"
-                )
-
-                new_columns[hazard_col] = hazard_stats["band_1_max"].astype(float).values
-                new_columns[defended_col] = hazard_stats["band_2_max"].astype(float).values
-
-                defended_prefix = "band_2_weight_"
-                for damage_col, cost_col in zip(damage_cols, cost_cols):
-                    new_columns[damage_col] = hazard_stats[defended_prefix + damage_col].astype(float).values
-                    new_columns[cost_col] = hazard_stats[defended_prefix + cost_col].astype(float).values
-                    
-        new_columns_df = pd.DataFrame(new_columns, index=vector_asset.index)
-        vector_asset = pd.concat([vector_asset, new_columns_df], axis=1)
-        asset_type_damages.append(vector_asset)
-    
+    # pull it all together
     vector = pd.concat(asset_type_damages, axis=0)
     
+    # calculate polygon areas
     geod = Geod(ellps="WGS84")
     def calculate_area(geom):
         area, _ = geod.geometry_area_perimeter(geom)
         return abs(area)
     tqdm.pandas(desc="Calculating polygon areas")
-
     vector["unit"] = (
         vector.geometry.progress_apply(calculate_area)
     )

@@ -73,6 +73,7 @@ rule calculate_annual_metrics:
     """
     snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro/annual.parquet
     snakemake --cores 4 ../results/risk/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro/annual.parquet
+    snakemake --cores 4 ../results/risk/tza_airports_polygons/pluvial/kilimanjaro/annual.parquet
     """
     input:
         vector="../results/risk/{asset}_{geom}/{hazard}/{subregion}/profile.geoparquet"
@@ -99,6 +100,7 @@ rule all_results_for_asset_and_hazard:
     """
     snakemake --cores 4 ../results/flags/tza_railway_edges/pluvial/.processed -n
     snakemake --cores 4 ../results/flags/tza_roads_bridges_and_culverts_nodes/pluvial/.processed -n
+    snakemake --cores 4 ../results/flags/tza_airports_polygons/pluvial/.processed -n
     """
     input:
         all_subregions
@@ -113,7 +115,11 @@ rule all_intersections_for_asset:
     input:
         expand(
             "../results/flags/{asset_geom}/{hazard}/.processed",
-            asset_geom=["tza_roads_bridges_and_culverts_nodes"],
-            # asset_geom=["tza_railway_edges"],
+            asset_geom=[
+                # "tza_roads_edges", "tza_railway_edges",
+                # "tza_roads_bridges_and_culverts_nodes",
+                "tza_airports_polygons",
+                # "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
+            ],
             hazard=["pluvial", "fluvial", "coastal", "landslide", "cyclone"]
         )
