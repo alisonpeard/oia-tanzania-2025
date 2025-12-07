@@ -3,6 +3,7 @@
 Potential bottlenecks:
 - Looping through asset_types
 """
+import os
 import logging
 import pandas as pd
 import geopandas as gpd
@@ -278,6 +279,7 @@ def intersect(
 
     if splits_path is not None:
         logging.info(f"Saving split geometries to {splits_path}...")
+        os.makedirs(Path(splits_path).parent, exist_ok=True)
         vector_splits.to_parquet(splits_path, index=True)
 
     logging.info("Dissolving split geometries back to original...")
