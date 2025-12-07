@@ -11,7 +11,7 @@ from . import core
 from . import plot
 from . import providers
 
-# %% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# %% - - - - - - OLD (REFERENCE) - - - - - - - - - - - - - - - - - - - - - -
 def admin0_by_type(provider, meancols, mincols, maxcols,
                    HAZARD, EPOCH, SCENARIO, RPS,
                    var="asset_type", aggfun="sum",
@@ -72,87 +72,6 @@ def admin0_by_type(provider, meancols, mincols, maxcols,
 
     return fig, ax
 
-# %% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-def admin0_scenarios(provider, meancols,
-                     SCENARIOS, EPOCHS, RPS):
-    gdf = provider.gdf.copy()
-    meancols = plot.subset_columns(meancols, scenarios=SCENARIOS, epochs=EPOCHS, rps=RPS)
-    sum = gdf[meancols].sum()
-    sum_means = pd.DataFrame(sum).reset_index()
-    sum_means.columns = ['hazard_code', 'usd']
-
-    split_codes = sum_means["hazard_code"].str.split('_', expand=True)
-    sum_means['hazard']   = split_codes[0].apply(provider.format_hazard_slug)
-    sum_means['scenario'] = split_codes[1].apply(provider.format_scenario)
-    sum_means['epoch']    = split_codes[2].apply(provider.format_epoch)
-    sum_means['returnperiod'] = split_codes[3].apply(provider.format_rp)
-
-    sum_means = sum_means.drop(columns=['hazard_code'])
-
-    river_means = sum_means.copy()
-    returnperiods = sorted(list(sum_means['returnperiod'].unique()))
-    epochs = list(sum_means['epoch'].unique())
-    norm = mcolors.BoundaryNorm(returnperiods, 256)
-
-    # start plotting
-    ncols = ((len(SCENARIOS) - 1 ) * len(EPOCHS)) - 1
-    fig, axs = plt.subplots(1, ncols, figsize=(ncols * 3, 4), sharey=True,
-                            gridspec_kw={'wspace': 0})
-    axs = plot.ensure_list(axs)
-    river_means['scenario'] = river_means['scenario'].str.replace('rcp', 'RCP ').str.replace('p','.')
-    river_means['scenario'] = river_means['scenario'].str.replace('historical', ' ').str.replace('hist', ' ')
-    river_means.columns = ["USD", "Hazard", "Scenario", "Epoch", "Return period"]
-    river_means['USD (million)'] = river_means['USD'] * 1e-6
-
-    river_means = river_means.sort_values(by=['Epoch', 'Scenario', 'Return period'])
-
-    cmaps = {}
-    for i, scenario in enumerate(river_means['Scenario'].unique()):
-        cmap = plot.create_white_to_color_cmap(core.npg[i])
-        cmaps[scenario] = cmap
-
-    i = 0
-    for epoch in sorted(epochs):
-        epoch_data = river_means[river_means['Epoch'] == epoch]
-        scenarios = list(epoch_data['Scenario'].unique())
-        
-        for scenario in sorted(scenarios):
-            try:
-                data = epoch_data[epoch_data['Scenario'] == scenario]
-                cmap = cmaps[scenario]
-                add_legend = "full" if (i in [0, 1, 2]) else False
-                sns.barplot(x=data['Scenario'], y=data['USD (million)'],
-                            hue=data['Return period'], ax=axs[i],
-                            palette=cmap, legend=add_legend, hue_norm=norm,
-                            edgecolor='black', linewidth=0.5)
-                if add_legend == "full":
-                    sns.move_legend(axs[i], "upper left")
-                axs[i].set_xlabel(epoch, fontweight='bold', x=0.5)
-            except Exception as e:
-                print(e)
-            i += 1
-
-    # turn off top and right spines
-    for ax in axs:
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-
-    for j in list(np.arange(2, len(axs), 2)):
-        ax = axs[j]
-        ax.spines['left'].set_visible(False)
-        ax.yaxis.set_ticks_position('none')  # no ticks on the left
-        ax.set_xlim(-0.4, 0.6)
-        ax.set_xlabel("")
-
-    # shift xlabels for scenarios
-    for epoch, j in zip(sorted(epochs)[1:], np.arange(1, ncols, 2)):
-        ax = axs[j]
-        ax.set_xlim(-0.55, 0.45)
-        ax.set_xlabel(epoch, fontsize=12, fontweight='bold', x=1)
-
-    # axs[0].set_xlabel("Historical", fontsize=12, fontweight='bold')
-
-    return fig, axs
 
 # %% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 def admin1_roadlength(provider,
