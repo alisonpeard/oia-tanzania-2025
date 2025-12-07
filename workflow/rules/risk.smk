@@ -29,7 +29,7 @@ rule intersect_subregion_hazard:
         damage_curve_dir="../config/damage_curves",
         rehab_cost_dir="../config/rehab_costs",
         protection_dir="../config/design_standards",
-        splits_path=[None, "../results/risk/{asset}_{geom}/{hazard}/{subregion}/splits.geoparquet"][0]
+        splits_path=[None, "../results/risk/{asset}_{geom}/{hazard}/{subregion}/splits.geoparquet"][1]
     log:
         file="../logs/risk/intersect_{geom}_{asset}_{subregion}_{hazard}.log"
     script:
@@ -116,10 +116,20 @@ rule all_intersections:
         expand(
             "../results/flags/{asset_geom}/{hazard}/.processed",
             asset_geom=[
-                "tza_roads_edges", "tza_railway_edges",
-                "tza_roads_bridges_and_culverts_nodes",
-                "tza_airports_polygons",
-                "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
+                "tza_roads_edges",
+                # "tza_railway_edges",
+                # "tza_roads_bridges_and_culverts_nodes",
+                # "tza_airports_polygons",
+                # "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
             ],
-            hazard=["pluvial", "fluvial", "coastal", "landslide", "cyclone"]
+            hazard=[
+                "hd35",
+                "tasmax",
+                # "pluvial",
+                # "fluvial",
+                # "coastal",
+                # "landslide",
+                # "cyclone"
+                ]
+
         )

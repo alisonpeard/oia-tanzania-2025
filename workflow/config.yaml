@@ -4,4 +4,4 @@ local_crs: 32735
 country: "tanzania"
 admin_level: 1
 bbox: [29, 41, -12, -1]
-reprocess_hazards: false
+reprocess_hazards: true

@@ -73,10 +73,10 @@ rule all_fathom_scenarios:
     input:
         tiffs = expand(
             "../results/hazards/input/{SUBCATEGORY}_{EPOCH}_{SCENARIO}_rp{RP}.tif",
-            SUBCATEGORY=["pluvial"],#["fluvial", "coastal", "pluvial"],
-            EPOCH=["2080"],#["2030", "2050", "2080"],
-            SCENARIO=["ssp245"], # ["ssp126", "ssp245", "ssp585"],
-            RP = ["00005", "00010", "00020", "00050", "00100", "00200", "00500", "01000"]
+            SUBCATEGORY=["coastal"],#["fluvial", "coastal", "pluvial"],
+            EPOCH=["2050"],#["2030", "2050", "2080"],
+            SCENARIO=["ssp585"], # ["ssp126", "ssp245", "ssp585"],
+            RP = ["00050"] #["00005", "00010", "00020", "00050", "00100", "00200", "00500", "01000"]
         )
 
 
