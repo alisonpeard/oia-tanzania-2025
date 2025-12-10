@@ -62,10 +62,12 @@ def main(input, output, params=None):
     risk_gdf["value"] = risk_gdf["value"].fillna(0.0)
 
     risk_grouped = risk_gdf.groupby(
-        ["id", "metric", "hazard", "epoch", "scenario", "range"]
+        ["id", "metric", "hazard", "epoch", "scenario", "range"],
+        dropna=False
     )[["rp", "value"]]
 
     tqdm.pandas(desc="Calculating EAD")
+
     ead_results = risk_grouped.progress_apply(ead)
     ead_results = ead_results.reset_index()
     ead_results = ead_results.rename(columns={0: "expected"})
