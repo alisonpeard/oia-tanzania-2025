@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.colors as mcolors
 
-HAZARDS   = ["pluvial", "fluvial", "coastal", "cyclone", "landslide"]
+HAZARDS   = ["pluvial", "fluvial", "coastal", "cyclone"]#, "landslide"]
 ASSET_GEOMS = [
     "tza_roads_edges", "tza_railway_edges", "tza_roads_bridges_and_culverts_nodes",
     "tza_airports_polygons", "tza_maritime_ports_polygons", "tza_iww_ports_polygons"
@@ -47,6 +47,8 @@ if __name__ == "__main__":
     outdir = "../figures/profiles"
     os.makedirs(outdir, exist_ok=True)
 
+    missing_combinations = []
+
     for HAZARD in HAZARDS:
         for ASSET_GEOM in ASSET_GEOMS:
 
@@ -69,8 +71,14 @@ if __name__ == "__main__":
 
                 df = asset.copy()
 
+        
                 # barplot_scenarios(asset)
                 risk_cols = [col for col in df.columns if col.startswith(METRIC)]
+
+                # NB: custom scaling for airport costings!
+                if (ASSET_GEOM =="airports_polygons") & (METRIC == "cost"):
+                    df[risk_cols] = df[risk_cols] * 0.1  # adjust for underestimation in model
+
                 risk_gdf = df[risk_cols].copy().T.reset_index()
                 risk_tuples = risk_gdf["index"].apply(extract_hazard_info)
                 risk_info = pd.DataFrame(
@@ -211,7 +219,16 @@ if __name__ == "__main__":
 
                 outfile = f"{outdir}/{ASSET_GEOM}_{HAZARD}_{METRIC}_{range_str}_{SUBREGION if SUBREGION else 'national'}.pdf"
                 fig.savefig(outfile, dpi=300, bbox_inches='tight', transparent=True)
-                fig.close()
+                # fig.close()
             except Exception as e:
                 print(f"ERROR processing hazard: {HAZARD}, asset: {ASSET_GEOM}, subregion: {SUBREGION if SUBREGION else 'national'} - {e}")
+                missing_combinations.append((HAZARD, ASSET_GEOM, SUBREGION, str(e)))
+
+    if missing_combinations:
+        # make dataframe and save to csv
+        missing_df = pd.DataFrame(missing_combinations, columns=['hazard', 'asset_geom', 'subregion', 'error'])
+        missing_df.to_csv(f"{outdir}/missing_combinations.csv", index=False)
+    else:
+        print("All hazard-asset-subregion combinations processed successfully.")
+
     # %%
