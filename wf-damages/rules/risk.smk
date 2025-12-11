@@ -111,25 +111,28 @@ rule all_results_for_asset_and_hazard:
 rule all_intersections:
     """
     snakemake --cores 1 all_intersections -n
+
+    Add this flag to only run post-intersection rule:
+    --allowed-rules all_results_for_asset_and_hazard calculate_annual_metrics
     """
     input:
         expand(
             "../results/flags/{asset_geom}/{hazard}/.processed",
             asset_geom=[
                 "tza_roads_edges",
-                # "tza_railway_edges",
-                # "tza_roads_bridges_and_culverts_nodes",
-                # "tza_airports_polygons",
-                # "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
+                "tza_railway_edges",
+                "tza_roads_bridges_and_culverts_nodes",
+                "tza_airports_polygons",
+                "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
             ],
             hazard=[
-                "hd35",
-                "tasmax",
-                # "pluvial",
-                # "fluvial",
-                # "coastal",
+                # "hd35",
+                # "tasmax",
+                "pluvial",
+                "fluvial",
+                "coastal",
                 # "landslide",
-                # "cyclone"
+                "cyclone"
                 ]
 
         )
