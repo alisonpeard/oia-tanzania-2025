@@ -209,7 +209,7 @@ if __name__ == "__main__":
                     fontsize=16
                 )
 
-                outfile = f"{outdir}/{ASSET_GEOM}_{HAZARD}_{METRIC}_{range_str}_{SUBREGION if SUBREGION else 'national'}.pdf"
+                outfile = f"{outdir}/{ASSET_GEOM}_{HAZARD}_{METRIC}_{range_str}_{SUBREGION if SUBREGION else 'national'}.png"
                 fig.savefig(outfile, dpi=300, bbox_inches='tight', transparent=True)
                 fig.close()
             except Exception as e:

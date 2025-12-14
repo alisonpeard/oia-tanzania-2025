@@ -130,58 +130,8 @@ if __name__ == "__main__":
         formatted_text = format_legend_texts(original_text)
         text.set_text(formatted_text)
     
+    fig.savefig(os.path.join(
+        outdir,
+        f"barchart_{ASSET_GEOM}_{HAZARD}_{SUBREGION if SUBREGION else 'national'}_{METRIC}_{range_str}_{SCENARIO}_{EPOCH}.png"
+    ), dpi=300)
 # %%
-
-
-"""
-Reference code:
-"""
-
-def admin1_roadtype(provider, meancols, mincols, maxcols,
-                    HAZARD, EPOCH, SCENARIO, RP,
-                    SUBGROUP="asset_type"):
-    gdf = provider.gdf.copy()
-    # filter to scenario
-    meancols = plot.subset_columns(meancols, hazards=HAZARD, scenarios=SCENARIO, epochs=EPOCH, rps=RP)
-    mincols  = plot.subset_columns(mincols,  hazards=HAZARD, scenarios=SCENARIO, epochs=EPOCH, rps=RP)
-    maxcols  = plot.subset_columns(maxcols,  hazards=HAZARD, scenarios=SCENARIO, epochs=EPOCH, rps=RP)
-    assert len(meancols) == len(mincols) == len(maxcols), \
-        f"Number of columns do not match: {len(meancols)} != {len(mincols)} != {len(maxcols)}"
-
-    # group by state and get totals
-    means = gdf.groupby(["state", SUBGROUP])[meancols].apply('sum')
-    means[meancols] = means[meancols] / 1e6 # convert USD to million USD
-    # means = means.join(admin1)
-    means
-
-    mins = gdf.groupby(["state", SUBGROUP])[mincols].agg('sum')
-    mins[mincols] = mins[mincols] / 1e6
-
-    maxs = gdf.groupby(["state", SUBGROUP])[maxcols].agg('sum')
-    maxs[maxcols] = maxs[maxcols] / 1e6
-
-    # rename columns so names match
-    # RPS = [f"{core.format_rp(RP)}-year" for RP in RPS]
-    RPS = [f"{provider.format_rp(RP)}-year"]
-
-    means.columns = RPS #+ ['geometry']
-    mins.columns = RPS
-    maxs.columns = RPS
-
-    upper = maxs - means[RPS]
-    lower = means[RPS] - mins
-    upper = upper.T.values
-    lower = lower.T.values
-    yerr = np.stack([lower, upper], axis=1)
-    yerr.shape
-
-    # settings
-    # subset means to what we want to plot
-    means_rp = means[[f'{provider.format_rp(RP)}-year']].reset_index()
-    if means_rp[SUBGROUP].dtype == bool:
-        means_rp[SUBGROUP] = means_rp[SUBGROUP].replace({True: SUBGROUP.capitalize(), False: f'Not {SUBGROUP}'})
-    means_rp = means_rp.pivot(index='state', columns=SUBGROUP, values=f"{core.format_rp(RP)}-year").dropna(axis=1, how="all").replace(np.nan, 0)
-
-
-
-    return fig, ax
