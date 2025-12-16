@@ -12,7 +12,8 @@ if REPROCESS_HAZARDS:
     include: "rules/hazards/fathom.smk"
     include: "rules/hazards/chaz.smk"
     include: "rules/hazards/landslides.smk"
-    include: "rules/hazards.smk"
+
+include: "rules/hazards.smk"
 
 # main analysis rules
 include: "rules/assets.smk"

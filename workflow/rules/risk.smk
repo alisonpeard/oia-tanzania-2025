@@ -117,19 +117,19 @@ rule all_intersections:
             "../results/flags/{asset_geom}/{hazard}/.processed",
             asset_geom=[
                 "tza_roads_edges",
-                # "tza_railway_edges",
-                # "tza_roads_bridges_and_culverts_nodes",
-                # "tza_airports_polygons",
-                # "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
+                "tza_railway_edges",
+                "tza_roads_bridges_and_culverts_nodes",
+                "tza_airports_polygons",
+                "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
             ],
             hazard=[
-                "hd35",
-                "tasmax",
                 # "pluvial",
                 # "fluvial",
                 # "coastal",
-                # "landslide",
+                "landslide",
                 # "cyclone"
+                # "hd35",
+                # "tasmax",
                 ]
 
         )

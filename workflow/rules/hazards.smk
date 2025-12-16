@@ -23,6 +23,7 @@ rule align_hazard_rasters:
     snakemake --cores 4 align_hazard_rasters
     """
     input:
+        reference_raster="../results/hazards/input/pluvial_2020_historical_rp00005.tif",
         rasters=get_all_input_hazards,
     output:
         outdir=directory("../results/hazards/aligned")

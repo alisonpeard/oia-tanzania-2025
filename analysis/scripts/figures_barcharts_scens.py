@@ -7,10 +7,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.colors as mcolors
 
-HAZARDS   = ["pluvial", "fluvial", "coastal", "cyclone", "landslide"]
+HAZARDS   = ["landslide"] # ["pluvial", "fluvial", "coastal", "cyclone", "landslide"]
 ASSET_GEOMS = [
-    "tza_roads_edges", "tza_railway_edges", "tza_roads_bridges_and_culverts_nodes",
-    "tza_airports_polygons", "tza_maritime_ports_polygons", "tza_iww_ports_polygons"
+    "tza_roads_edges",
+    # "tza_railway_edges",
+    # "tza_roads_bridges_and_culverts_nodes",
+    # "tza_airports_polygons", "tza_maritime_ports_polygons", "tza_iww_ports_polygons"
 ]
 METRIC = "cost"
 METRIC_UNIT = "$"
