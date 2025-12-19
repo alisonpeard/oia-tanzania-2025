@@ -138,7 +138,13 @@ def vectorised_damage_calculation(
         damage_fraction: damage fraction for cost calculation
     """
     damage_frac = np.vectorize(damage_function)(defended_values)
-    damage_binary = (damage_frac > 0).astype(float) * unit_values
+    # damage_binary = (damage_frac > 0).astype(float) * unit_values
+    # propagate nans properly
+    damage_binary = np.where(
+        damage_frac > 0,
+        1.0,
+        np.where(np.isnan(damage_frac), np.nan, 0.0)
+    ) * unit_values
     return damage_binary, damage_frac
 
 
@@ -147,9 +153,16 @@ def unsplit(vector, vector_ref, hazard_cols, damage_cols, cost_cols):
     risk_cols = hazard_cols + damage_cols + cost_cols
     meta_cols = ["asset_type", "unit", "unit_type"]
 
-    agg_func = {col: "max" for col in hazard_cols} | \
-                {col: "sum" for col in damage_cols} | \
-                {col: "sum" for col in cost_cols}
+    # make sure to propagate NaNs to unsplit df
+    def sum_strict(x):
+        return x.sum(min_count=1)
+    
+    def max_strict(x):
+        return np.nan if x.isna().any() else x.max()
+    
+    agg_func = {col: max_strict for col in hazard_cols} | \
+                {col: sum_strict for col in damage_cols} | \
+                {col: sum_strict for col in cost_cols}
     meta_agg = {"unit": "sum", 'unit_type': "first", "asset_type": "first"}
     agg_func.update(meta_agg)
 
@@ -262,7 +275,7 @@ def intersect(
                 damage_binary, damage_frac = vectorised_damage_calculation(
                     defended_array, damage_function, unit_array
                 )
-                
+
                 new_columns[damage_col] = damage_binary
                 damage_cols.add(damage_col)
 

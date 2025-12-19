@@ -10,6 +10,7 @@ from utils import linestrings
 from utils import polygons
 from utils import naming
 
+
 ASSET_COLS = ["id", "asset_type", "geometry"]
 
 
@@ -18,12 +19,14 @@ def make_damage_function(df:pd.DataFrame, suffix="mean"):
         df["intensity"],
         df["damage_fraction" + "_" + suffix],
     )
-    bounds = tuple(f(damage_fraction) for f in (min, max))
+    # assuming damage_fraction is sorted by intensity
+    lower = damage_fraction.iloc[0]
+    upper = damage_fraction.iloc[-1]
     return interp1d(
         hazard_intensity,
         damage_fraction,
         kind="linear",
-        fill_value=bounds,
+        fill_value=(lower, upper),
         bounds_error=False,
     )
 
@@ -41,13 +44,13 @@ def check_geoms(vector:gpd.GeoDataFrame):
     return geom_type[0]
 
 
-def dummy_damage_curve_df(hazard, asset_type):
+def make_dummy_damage_df(hazard, asset_type):
     logging.warning(f"No damage curve found for hazard {hazard} and asset type {asset_type}. Assuming zero damage.")
     return pd.DataFrame({
-        "intensity": [0, 1],
-        "damage_fraction_min": [-9999., -9999.],
-        "damage_fraction_mean": [-9999., -9999.],
-        "damage_fraction_max": [-9999., -9999.],
+        "intensity": [0.0, 1.0],
+        "damage_fraction_min": [0.0, float("nan")],
+        "damage_fraction_mean": [0.0, float("nan")],
+        "damage_fraction_max": [0.0, float("nan")],
     }, dtype=float)
 
 
@@ -58,8 +61,9 @@ def prepare_damage_curves(damage_curve_dir, hazards, asset_types) -> dict:
         for asset_type in asset_types:
             damage_curve_path = os.path.join(damage_curve_hazard_dir, f"{asset_type}.csv")
             if not os.path.exists(damage_curve_path):
-                logging.warning(f"Damage curve file not found: {damage_curve_path}. Filling with zeros.")
-                damage_df = dummy_damage_curve_df(hazard, asset_type)
+                logging.warning(f"No damage curve found for hazard: {hazard} and asset type: {asset_type}.")
+                print(f"WARNING: No damage curve found for hazard: {hazard} and asset type: {asset_type}.")
+                damage_df = make_dummy_damage_df(hazard, asset_type)
             else:
                 damage_df = pd.read_csv(damage_curve_path, comment='#')
             

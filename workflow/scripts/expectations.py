@@ -59,7 +59,7 @@ def main(input, output, params=None):
         var_name="id"
         )
 
-    risk_gdf["value"] = risk_gdf["value"].fillna(0.0)
+    # risk_gdf["value"] = risk_gdf["value"].fillna(0.0)
 
     risk_grouped = risk_gdf.groupby(
         ["id", "metric", "hazard", "epoch", "scenario", "range"],

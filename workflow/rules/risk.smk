@@ -12,7 +12,7 @@ def get_subregions():
 
 rule intersect_subregion_hazard:
     """
-    snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro/profile.geoparquet
+    snakemake --cores 4 ../results/risk/tza_railway_edges/cyclone/kilimanjaro/profile.geoparquet
     snakemake --cores 4 ../results/risk/tza_airports_polygons/pluvial/kilimanjaro/profile.geoparquet
     snakemake --cores 4 ../results/risk/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro/profile.geoparquet
     """
@@ -116,20 +116,20 @@ rule all_intersections:
         expand(
             "../results/flags/{asset_geom}/{hazard}/.processed",
             asset_geom=[
-                "tza_roads_edges",
                 "tza_railway_edges",
-                "tza_roads_bridges_and_culverts_nodes",
                 "tza_airports_polygons",
+                "tza_roads_bridges_and_culverts_nodes",
+                "tza_roads_edges",
                 "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
             ],
             hazard=[
-                # "pluvial",
-                # "fluvial",
-                # "coastal",
+                "pluvial",
+                "fluvial",
+                "coastal",
                 "landslide",
-                # "cyclone"
-                # "hd35",
-                # "tasmax",
+                "cyclone",
+                "hd35",
+                "tasmax",
                 ]
 
         )

@@ -170,7 +170,12 @@ def _damaged_units(x, c, w, damage_function):
     # NEW: this is binary so we measure it in units / area sqm
     x = np.ma.filled(x, 0)
     damage_frac = damage_function(x) # nonlinear / pwl
-    damage_binary = (damage_frac > 0).astype(float)
+    # propagate nans properly
+    damage_binary = np.where(
+        damage_frac > 0,
+        1.0,
+        np.where(np.isnan(damage_frac), np.nan, 0.0)
+    )
     damage_units = damage_binary * c * w
     return np.sum(damage_units)
 
