@@ -102,11 +102,8 @@ from shapely.geometry import box
 def aspect(hazard:str) -> float:
     # make it fatter and taller for coastal flooding
     if hazard == "coastal":
-        return 20
-    return "auto"
-    # if hazard == "coastal":
-    #     return 0.2
-    # return 0.8
+        return 8
+    return 20
 
 admin = gpd.read_file(admin_path).to_crs(epsg=4326)
 
@@ -136,13 +133,13 @@ for hazlist, cmap, unit in zip(hazards, cmaps, units):
     data = data.where(data > 0)
 
     # data.plot.contourf(ax=ax, cmap=cmap, add_colorbar=True, levels=12,
-    data.plot(ax=ax, cmap=cmap, add_colorbar=True, #levels=10,
+    im = data.plot(ax=ax, cmap=cmap, add_colorbar=True, #levels=10,
                 cbar_kwargs={'fraction':0.046, 'pad':0.04, 'label': unit,
                              'orientation':'horizontal', 'shrink': 0.8,
                              "aspect": aspect(hazinfo[1]),
                              },
                 rasterized=True)
-
+    # plt.setp(im.colorbar.ax.get_xticklabels(), rotation=20, ha='center')
     ax.set_title(f"{hazinfo[4]}-yr {hazinfo[1]} hazard\n({hazinfo[2]}, {hazinfo[3]})")
 
     # difference between admin and bbox

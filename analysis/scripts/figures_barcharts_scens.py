@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.colors as mcolors
 
-HAZARDS   = ["landslide"] # ["pluvial", "fluvial", "coastal", "cyclone", "landslide"]
+HAZARDS   = ["cyclone"] # ["pluvial", "fluvial", "coastal", "cyclone", "landslide"]
 ASSET_GEOMS = [
-    "tza_roads_edges",
-    # "tza_railway_edges",
+    # "tza_roads_edges",
+    "tza_railway_edges",
     # "tza_roads_bridges_and_culverts_nodes",
     # "tza_airports_polygons", "tza_maritime_ports_polygons", "tza_iww_ports_polygons"
 ]
@@ -213,7 +213,7 @@ if __name__ == "__main__":
 
                 outfile = f"{outdir}/{ASSET_GEOM}_{HAZARD}_{METRIC}_{range_str}_{SUBREGION if SUBREGION else 'national'}.png"
                 fig.savefig(outfile, dpi=300, bbox_inches='tight', transparent=True)
-                fig.close()
+                # fig.close()
             except Exception as e:
                 print(f"ERROR processing hazard: {HAZARD}, asset: {ASSET_GEOM}, subregion: {SUBREGION if SUBREGION else 'national'} - {e}")
     # %%

@@ -5,7 +5,7 @@ scenarios represented by error bars
 barcharts clustered by 
 - asset_type (railways) ✅ 
 - road_type (roads) ✅ 
-- structure_type (bridges and culverts) ✅
+- structure_type (bridges and culverts) 
 - hub_type (airports, iww ports, maritime ports) [other scrtip]
 
 """
@@ -45,7 +45,7 @@ FRAMEWORKS = {
     "fluvial": {"lower": "ssp126", "centre": "ssp245", "upper": "ssp585"},
     "pluvial": {"lower": "ssp126", "centre": "ssp245", "upper": "ssp585"},
     "coastal": {"lower": "ssp126", "centre": "ssp245", "upper": "ssp585"},
-    "cyclone": {"lower": "ssp245", "centre": "ssp245", "upper": "ssp585"}, #! NB Check later
+    "cyclone": {"lower": "historical", "centre": "ssp245", "upper": "ssp585"},
 }
 
 
@@ -83,6 +83,19 @@ def create_white_to_color_cmap(hex_color, name='custom_cmap'):
     return cmap
 
 
+def process_structure_type(structure_type: str) -> str:
+    """Process structure type strings to standardize them."""
+    print(structure_type)
+    structure_type = structure_type.lower()
+    if "bridge" in structure_type:
+        output_type = "bridge"
+    elif "culvert" in structure_type:
+        output_type = "culvert"
+    else:
+        print(f"  Unrecognized structure type: {structure_type}, assigning to 'other'")
+        output_type = "other"
+    return output_type
+
 if __name__ == "__main__":
     outdir = "../figures/asset_type_profiles"
     os.makedirs(outdir, exist_ok=True)
@@ -109,7 +122,6 @@ if __name__ == "__main__":
                 asset = pd.concat(asset_dfs, axis=0)
                 # asset = asset.groupby("id").mean().reset_index() # need to do later
 
-
             if ASSET_GEOM.startswith("tza_roads"):
                 # load original asset file
                 road_path = os.path.join(
@@ -130,6 +142,11 @@ if __name__ == "__main__":
             
                 asset = asset.set_index("id")
                 asset = asset.join(roads[[ASSET_TYPE]], how="left")
+
+            
+            if ASSET_GEOM.startswith("tza_roads_bridges_and_culverts"):
+                asset["old_type"] = asset[ASSET_TYPE].copy()
+                asset[ASSET_TYPE] = asset[ASSET_TYPE].apply(process_structure_type)
 
             df = asset.copy()
             METRIC_UNIT = df["unit_type"].unique()[0]
