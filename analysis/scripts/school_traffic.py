@@ -51,7 +51,7 @@ if __name__ == "__main__":
     pops_df = gpd.read_file(pops_path)
     zeta = pops_df["zeta"][0]
     print(f"Using ζ = {zeta}")
-    
+
     pops_df = pops_df[["id", pops_col]].rename(columns={pops_col: "pop"}).copy()
     pops_df["idx"] = pops_df["id"].map(id_to_index)
     pops_df = pops_df.dropna(subset=["idx"]).copy()
@@ -134,6 +134,7 @@ if __name__ == "__main__":
 
     traffic_gdf = gpd.GeoDataFrame(traffic_gdf, geometry="geometry", crs=roads.crs)
     traffic_gdf.to_file(os.path.join(outdir, "dar_es_salaam.gpkg"), driver="GPKG")
+    print(f"Saved traffic to {outdir}/dar_es_salaam.gpkg")
     print(traffic_gdf.head())
 
     for col in traffic_gdf.columns:

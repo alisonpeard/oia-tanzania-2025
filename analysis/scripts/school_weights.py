@@ -113,5 +113,7 @@ if __name__ == "__main__":
         how="left"
     )
     roads_service = gpd.GeoDataFrame(roads_service, geometry="geometry", crs=roads.crs)
+
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     roads_service.to_file(out_path, driver="GPKG")
     # %%
