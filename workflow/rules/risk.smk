@@ -116,11 +116,11 @@ rule all_intersections:
         expand(
             "../results/flags/{asset_geom}/{hazard}/.processed",
             asset_geom=[
-                "tza_railway_edges",
+                # "tza_railway_edges",
                 "tza_airports_polygons",
-                "tza_roads_bridges_and_culverts_nodes",
-                "tza_roads_edges",
-                "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
+                # "tza_roads_bridges_and_culverts_nodes",
+                # "tza_roads_edges",
+                # "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
             ],
             hazard=[
                 "pluvial",
