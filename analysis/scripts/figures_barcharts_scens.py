@@ -7,16 +7,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.colors as mcolors
 
-HAZARDS   = ["cyclone"] # ["pluvial", "fluvial", "coastal", "cyclone", "landslide"]
+HAZARDS   = ["pluvial"] # ["pluvial", "fluvial", "coastal", "cyclone", "landslide"]
 ASSET_GEOMS = [
     # "tza_roads_edges",
     "tza_railway_edges",
     # "tza_roads_bridges_and_culverts_nodes",
     # "tza_airports_polygons", "tza_maritime_ports_polygons", "tza_iww_ports_polygons"
 ]
-METRIC = "cost"
-METRIC_UNIT = "$"
-range_str = "mean_mean"
+METRIC = "damage"
+METRIC_UNIT = "m"
+range_str = "mean"
 SUBREGION = [None, "kilimanjaro"][0]
 WD = "../../results"
 LOCAL_CRS = 32735

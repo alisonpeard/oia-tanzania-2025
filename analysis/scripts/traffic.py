@@ -5,14 +5,6 @@ from numba import njit
 PARALLEL = True
 
 
-def make_indices_mapping(ids: np.ndarray) -> dict:
-    """Create a mapping from arbitrary IDs to contiguous integer indices."""
-    unique_ids = np.unique(ids)
-    id_to_index = {id_: idx for idx, id_ in enumerate(unique_ids)}
-    index_to_id = {idx: id_ for idx, id_ in enumerate(unique_ids)}
-    return id_to_index, index_to_id
-
-
 def edges_to_csr(
     edges: np.ndarray,
     weights: np.ndarray,
@@ -54,7 +46,7 @@ def edges_to_csr(
     csr_weights = weights.astype(np.float64)
     csr_edges = edges.astype(np.int64)
     
-    return idxptr, indices, csr_weights, csr_edges
+    return idxptr, indices, csr_weights, csr_edges, np.argsort(sort_idx)
 
 
 @njit(parallel=PARALLEL)
@@ -392,3 +384,47 @@ def radiation_model_core(
         out_n_b[:result_idx],
         traffic_ij,
     )
+
+
+@njit(parallel=PARALLEL)
+def local_detour_costs(
+    idxptr: np.ndarray,
+    indices: np.ndarray,
+    weights: np.ndarray,
+    # traffic_ij: np.ndarray,
+    n_vertices: int,
+    max_cost: float = np.inf,
+) -> np.ndarray:
+    n_edges = len(indices)
+    criticality = np.zeros(n_edges, dtype=np.float32)
+
+    assert len(indices) == len(weights)
+    
+    for u in range(n_vertices):
+        print(f"Computing local detour costs for node {u + 1} / {n_vertices}")
+        for edge_idx in range(idxptr[u], idxptr[u + 1]):
+            v = indices[edge_idx]
+            # flow = traffic_ij[edge_idx]
+            
+            # if flow <= 0:
+                # continue
+            
+            original_weight = weights[edge_idx]
+            weights[edge_idx] = np.inf
+            
+            # 2. Find local detour u -> v
+            # Note: max_dist can be original_weight * 5 to speed up search
+            dists, _ = dijkstra_with_heap(
+                idxptr, indices, weights, u, n_vertices,
+                max_dist=max_cost
+            )
+            detour_dist = dists[v]
+            
+            if detour_dist < max_cost:
+                criticality[edge_idx] = detour_dist
+            else: # bridge edge
+                criticality[edge_idx] = np.inf
+            
+            weights[edge_idx] = original_weight
+            
+    return criticality
