@@ -54,14 +54,13 @@ if __name__ == "__main__":
     roads["population"] = SCHOOL_GOING_FRACTION * roads[POPULATION]
     total_pop = roads["population"].sum()
 
-
     schools = gpd.read_file(schools_path)
     schools = schools.to_crs(roads.crs)
+    # %%
     schools["id"] = schools["id"].apply(format_school_id)
     schools = schools.rename(columns={"student_per_school": "population"})
     schools = schools[schools["population"] > 0].copy()
     schools = schools[["id", "geometry", "population"]]
-
     total_school_pop = schools["population"].sum()
     zeta = total_school_pop / total_pop
     print(f"Total population in roads: {total_pop}")
@@ -116,4 +115,17 @@ if __name__ == "__main__":
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     roads_service.to_file(out_path, driver="GPKG")
+
+    # %% Calculate the percentage of population served
+    print("Before removing local effects:")
+    print(f"  Total population demand: {total_pop:,.0f}")
+    print(f"  Total school capacities: {total_school_pop:,.0f}")
+    print(f"  Corrected school-going demand: {total_pop * zeta:,.0f}")
+
+    total_schools = roads_service[roads_service["school"] == 1]["population"].sum()
+    total_demand = roads_service[roads_service["school"] == 0]["population"].sum()
+
+    print("\nAfter removing local effects:")
+    print(f"  Total population demand: {total_demand:,.0f}")
+    print(f"  Total school capacities: {total_schools:,.0f}")
     # %%

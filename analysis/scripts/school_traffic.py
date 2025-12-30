@@ -1,23 +1,26 @@
+"""Calculate school traffic flows using the radiation model.
+https://doi.org/10.1038/ncomms6347
+"""
 # %%
 import os
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
+from pathlib import Path
 import time
 from contextlib import contextmanager
 import traffic
 
 # parameters
-i = 1
-outdir = "/Users/alison/Downloads/flows/road_traffic"
-road_path = [
-    "../../results/assets/tza_roads_edges/dar_es_salaam.geoparquet",
-    "/Volumes/Expansion/02_oia/oia-tanzania-2025/input/assets/tza_roads_edges.parquet"
-][i]
-outpath = [os.path.join(outdir, "dar_es_salaam.gpkg"), os.path.join(outdir, "tza_roads_edges.gpkg")][i]
+outdir = "/Users/alison/Downloads/flows/school_traffic"
+# road_path = "../../results/assets/tza_roads_edges/dar_es_salaam.geoparquet"
+road_path = "/Volumes/Expansion/02_oia/oia-tanzania-2025/input/assets/tza_roads_edges.parquet"
 pops_path = "/Users/alison/Downloads/flows/school_weights/tza_roads_weights.gpkg"
+figdir = "/Users/alison/Local/github/oia-tanzania-2025/analysis/figures/school_traffic"
 pops_col = "population"
+max_cost = [120.0, np.inf][0]  # minutes
+zeta = [None, 1.0][1]  # None to read from pops file
 
 
 @contextmanager
@@ -50,9 +53,16 @@ def make_indices_mapping(ids: np.ndarray) -> dict:
     index_to_id = {idx: id_ for idx, id_ in enumerate(unique_ids)}
     return id_to_index, index_to_id
 
-if __name__ == "__main__":
 
+def millions(x, pos):
+    """The two args are the value and tick position"""
+    return f"{x * 1e-6:.1f} M"
+
+
+if __name__ == "__main__":
+    os.makedirs(figdir, exist_ok=True)
     os.makedirs(outdir, exist_ok=True)
+    outpath = os.path.join(outdir, Path(road_path).stem)
 
     # create road graph
     roads = gpd.read_parquet(road_path)
@@ -74,36 +84,43 @@ if __name__ == "__main__":
 
     # create a populations array
     pops_df = gpd.read_file(pops_path)
-    zeta = pops_df["zeta"][0]
+    zeta = zeta or pops_df["zeta"].iloc[0]
     print(f"Using ζ = {zeta:.4f}")
 
-    pops_df = pops_df[["id", pops_col]].rename(columns={pops_col: "pop"}).copy()
+    pops_df = pops_df[["id", "school", pops_col]].rename(columns={pops_col: "pop"}).copy()
     pops_df["idx"] = pops_df["id"].map(id_to_index)
     pops_df = pops_df.dropna(subset=["idx"]).copy()
     pops_df["idx"] = pops_df["idx"].astype(np.int64)
-    pops_df = pops_df.set_index("idx")[["pop"]].sort_index()
+    pops_df = pops_df.set_index("idx")[["school","pop"]].sort_index()
     pops = np.zeros(n_vertices, dtype=np.float64)
     for idx, row in pops_df.iterrows():
         pops[idx] = row["pop"]
 
-    # start
-    origin_nodes = dest_nodes = np.array(list(index_to_id.keys()), dtype=np.int64)
+    # split origin/destination nodes
+    origin_nodes = pops_df[pops_df["school"] == 0].index.to_numpy(dtype=np.int32)
+    dest_nodes = pops_df[pops_df["school"] == 1].index.to_numpy(dtype=np.int32)
+    total_demand = pops[origin_nodes].sum()
+    total_capacity = pops[dest_nodes].sum()
+    print(f"Total capacity: {total_capacity:,.0f}")
+    print(f"Total demand: {total_demand:,.0f}")
+
+    # compressed sparse row graph
     csr_data = traffic.edges_to_csr(edges, weights, n_vertices, directed=False)
     idxptr, indices, csr_weights, csr_edges, sort_idx = csr_data
 
+    # traffic flows
     with timer("radiation model"):
         *res, flows = traffic.radiation_model(
             idxptr, indices, csr_weights, n_vertices,
             origin_nodes, dest_nodes, pops,
             min_cost=0,
-            max_cost=120.0,
-            zeta=zeta,
+            max_cost=max_cost,
+            zeta=1.0,
             flux_threshold=0.0,
             use_heap=True
         )
 
     out_a, out_b, out_flux, out_cost, out_s_ab, out_m_a, out_n_b = res
-
     od_matrix = pd.DataFrame({
         'a': out_a,
         'b': out_b,
@@ -113,32 +130,31 @@ if __name__ == "__main__":
         'cost': out_cost,
         'flux': out_flux,
     })
-    
-    print(od_matrix.shape)
 
+    # %% figures
+    # average walking time to school
+    fig, ax = plt.subplots(figsize=(4, 2.5))
+    ax.hist(od_matrix['cost'], weights=od_matrix['flux'],
+             bins=50, color='skyblue', edgecolor='k')
+    ax.set_xlabel("Walking time to school (mins)")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(millions))
+    fig.savefig(os.path.join(figdir, "od_matrix_cost_histogram.png"),
+                dpi=300, transparent=True, bbox_inches='tight');
+    print(f"Mean walking time: {np.average(od_matrix['cost'], weights=od_matrix['flux']):.2f} mins")
+    print(f"\nSaved figure to {figdir}/od_matrix_cost_histogram.png\n")
 
+    # %% total flux on network
+    total_flux = od_matrix['flux'].sum()
+    print(f"Total school-trips within {max_cost} mins: {total_flux:,.0f}")
+    print(f"Total school-going demand: {total_demand:,.0f}")
+    print(f"{total_demand - total_flux:,.0f} people unable to reach school within {max_cost} mins")
+
+    # %%
     with timer("local detour costs"):
         detour_costs = traffic.local_detour_costs(
             idxptr, indices, csr_weights, n_vertices,
-            max_cost=120.0
+            max_cost=max_cost * 10
         )
-
-    # %%
-    if False:
-        fig, axs = plt.subplots(1, 2)
-
-        ax = axs[0]
-        od_matrix[od_matrix["flux"] > 0]["flux"].plot.hist(ax=ax, bins=1000)
-        ax.set_yscale('log')
-        ax.set_xscale('log')
-        ax.set_xlabel("Modeled trips (flux)")
-        ax.set_ylabel("Count")
-
-        ax = axs[1]
-        ax.scatter(od_matrix["cost"], od_matrix["flux"], alpha=0.1)
-        ax.set_xlabel("Travel time (minutes)")
-        ax.set_ylabel("Modeled trips (flux)")
-        ax.set_yscale('log')
     
     # map back to road edges
     edge_ids = roads[["id", "from_idx", "to_idx"]].set_index(["from_idx", "to_idx"]).to_dict()
@@ -146,18 +162,19 @@ if __name__ == "__main__":
     edge_ids = {**edge_ids["id"], **edge_ids_rev["id"]}
 
     # re-order flows to match edges
-    flows = flows[sort_idx]
+    flows = flows[sort_idx] #! this is crashing now because flows is only the O-D pairs
     flows_fwd = flows[:len(edges)]
     flows_bwd = flows[len(edges):]
     flows = flows_fwd + flows_bwd
 
     # re-order detour costs to match edges
     detour_costs = detour_costs[sort_idx]
-    detour_costs = detour_costs[:len(edges)]
     detour_costs_bwd = detour_costs[len(edges):]
-    assert np.allclose(detour_costs, detour_costs_bwd)
+    detour_costs = detour_costs[:len(edges)]
+    detour_costs = np.minimum(detour_costs, detour_costs_bwd)
+    # assert np.allclose(detour_costs, detour_costs_bwd)
 
-    # output traffic info
+    # %% output traffic info
     traffic_df = pd.DataFrame({
         "from_idx": edges[:, 0],
         "to_idx": edges[:, 1],
@@ -166,18 +183,18 @@ if __name__ == "__main__":
     })
 
     roads = roads.reset_index(drop=True)
-    assert traffic_df["from_idx"].equals(roads["from_idx"]), "From indices don't match!"
-    assert traffic_df["to_idx"].equals(roads["to_idx"]), "To indices don't match!"
+    assert traffic_df["from_idx"].equals(roads["from_idx"]), "'from' indices don't match!"
+    assert traffic_df["to_idx"].equals(roads["to_idx"]), "'to' indices don't match!"
 
 
     traffic_gdf = pd.concat([
         roads, traffic_df[["traffic", "detour_cost"]]
     ], axis=1)
-    traffic_gdf["cost_unit"] = "walking time (minutes)"
+    traffic_gdf["cost_unit"] = "walking time (mins)"
 
     # save
     traffic_gdf = gpd.GeoDataFrame(traffic_gdf, geometry="geometry", crs=roads.crs)
-    traffic_gdf.to_file(outpath, driver="GPKG")
+    traffic_gdf.to_file(outpath)
     print(f"Saved traffic to {outpath}")
     print(traffic_gdf.head())
     # %%

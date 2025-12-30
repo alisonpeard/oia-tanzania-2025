@@ -4,7 +4,7 @@ from numba import njit
 from numba import prange
 
 
-PARALLEL = False
+PARALLEL = True
 
 
 def edges_to_csr(
@@ -38,15 +38,15 @@ def edges_to_csr(
     weights = weights[sort_idx]
     
     # build index ptr
-    idxptr = np.zeros(n_vertices + 1, dtype=np.int32)
+    idxptr = np.zeros(n_vertices + 1, dtype=np.int64)
     for i in range(n_edges):
         idxptr[edges[i, 0] + 1] += 1
     idxptr = np.cumsum(idxptr)
     
     # indices and weights are now just the sorted arrays
-    indices = edges[:, 1].astype(np.int32)
-    csr_weights = weights.astype(np.float32)
-    csr_edges = edges.astype(np.int32)
+    indices = edges[:, 1].astype(np.int64)
+    csr_weights = weights.astype(np.float64)
+    csr_edges = edges.astype(np.int64)
     
     return idxptr, indices, csr_weights, csr_edges, np.argsort(sort_idx)
 
@@ -61,8 +61,8 @@ def dijkstra(
     max_dist: float = np.inf,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Dijkstra with array scan. O(V^2). Better for dense graphs or small max_dist."""
-    distances = np.full(n_vertices, np.inf, dtype=np.float32)
-    predecessors = np.full(n_vertices, -1, dtype=np.int32)
+    distances = np.full(n_vertices, np.inf, dtype=np.float64)
+    predecessors = np.full(n_vertices, -1, dtype=np.int64)
     visited = np.zeros(n_vertices, dtype=np.bool_)
     
     distances[source] = 0.0
@@ -116,13 +116,13 @@ def dijkstra_with_heap(
         distances: shortest distance from source to each vertex (inf if unreachable)
         predecessors: predecessor of each vertex on shortest path (-1 if unreachable, source for source)
     """
-    distances = np.full(n_vertices, np.inf, dtype=np.float32)
-    predecessors = np.full(n_vertices, -1, dtype=np.int32)
+    distances = np.full(n_vertices, np.inf, dtype=np.float64)
+    predecessors = np.full(n_vertices, -1, dtype=np.int64)
     visited = np.zeros(n_vertices, dtype=np.bool_)
     
     # binary heap arrays
-    heap_dist = np.empty(n_vertices + 1, dtype=np.float32)
-    heap_node = np.empty(n_vertices + 1, dtype=np.int32)
+    heap_dist = np.empty(n_vertices + 1, dtype=np.float64)
+    heap_node = np.empty(n_vertices + 1, dtype=np.int64)
     heap_size = 0
     
     # initialise source
@@ -206,61 +206,57 @@ def compute_flux_for_origin(
         fluxes: flux values for valid pairs
         s_abs: intervening opportunities for valid pairs
     """
-    if True:
-        # new (faster) implementation
-        valid_idx = np.empty(len(dest_nodes), dtype=np.int64)
-        n_valid = 0
-        for i in range(len(dest_nodes)):
-            node_idx = dest_nodes[i]
-            cost = costs_a[node_idx]
-            if cost >= min_cost and cost < max_cost:
-                valid_idx[n_valid] = i
-                n_valid += 1
-        if n_valid == 0:
-            return (
-                np.empty(0, dtype=np.int64),
-                np.empty(0, dtype=np.float32),
-                np.empty(0, dtype=np.float32),
-            )
-        valid_idx = valid_idx[:n_valid]
-        sort_order = np.argsort(costs_a[dest_nodes[valid_idx]])
-        sorted_idx = valid_idx[sort_order]
-    else:
-        # (orig) filter valid destinations (reachable and within cost range)
-        costs_to_dest = costs_a[dest_nodes]
-        valid_mask = (costs_to_dest >= min_cost) & (costs_to_dest < max_cost)
-        n_valid = np.sum(valid_mask)
-        
-        if n_valid == 0:
-            return (
-                np.empty(0, dtype=np.int64),
-                np.empty(0, dtype=np.float32),
-                np.empty(0, dtype=np.float32),
-            )
-        
-        # sort valid destinations by cost (for intervening opportunities)
-        valid_idx = np.where(valid_mask)[0]
-        sort_order = np.argsort(costs_to_dest[valid_idx])
-        sorted_idx = valid_idx[sort_order]
+    # new (faster) implementation
+    valid_idx = np.empty(len(dest_nodes), dtype=np.int64)
+
+    n_valid = 0
+    for i in range(len(dest_nodes)):
+        node_idx = dest_nodes[i]
+        cost = costs_a[node_idx]
+        if cost >= min_cost and cost < max_cost:
+            valid_idx[n_valid] = i
+            n_valid += 1
+
+    if n_valid == 0:
+        return (
+            np.empty(0, dtype=np.int64),
+            np.empty(0, dtype=np.float64),
+            np.empty(0, dtype=np.float64),
+        )
     
-    # compute s_ab (cumulative population of closer nodes)
-    s_abs = np.empty(n_valid, dtype=np.float32)
+    valid_idx = valid_idx[:n_valid]
+    sort_order = np.argsort(costs_a[dest_nodes[valid_idx]])
+    sorted_idx = valid_idx[sort_order]
+    
+    # compute cumulative population of closer nodes
+    s_abs = np.empty(n_valid, dtype=np.float64)
     cumsum = 0.0
     for i in range(n_valid):
         s_abs[i] = cumsum
         cumsum += dest_pops[sorted_idx[i]]
     
     # compute flux
-    fluxes = np.empty(n_valid, dtype=np.float32)
+    p_abs = np.empty(n_valid, dtype=np.float64)
+    total_probs = 0.0
     for i in range(n_valid):
         idx = sorted_idx[i]
         n_b = dest_pops[idx]
         s_ab = s_abs[i]
         denom = (m_a + s_ab) * (m_a + s_ab + n_b)
         if denom > 0:
-            fluxes[i] = zeta * (m_a * m_a * n_b) / denom
+            p_ab = m_a * m_a * n_b / denom
         else:
-            fluxes[i] = 0.0
+            p_ab = 0.0
+        p_abs[i] = p_ab
+        total_probs += p_ab
+
+    # normalise fluxes to match total origin population
+    total_probs = np.sum(p_abs)
+    fluxes = np.zeros(n_valid, dtype=np.float64)
+    if (total_probs > 0):
+        scale_factor = np.float64(zeta * m_a) / total_probs
+        for i in range(n_valid):
+            fluxes[i] =  scale_factor * p_abs[i]
     
     return sorted_idx, fluxes, s_abs
 
@@ -283,15 +279,15 @@ def accumulate_edge_traffic(
     Accumulates traffic into traffic_ij array (modified in place).
     """
     # assign flux to dest_nodes
-    node_flux = np.zeros(n_vertices, dtype=np.float32)
+    node_flux = np.zeros(n_vertices, dtype=np.float64)
     for i in range(len(sorted_idx)):
         idx = sorted_idx[i]
         b = dest_nodes[idx]
         node_flux[b] += fluxes[i]
 
     # get reachable nodes (excl. source)
-    reachable = np.empty(n_vertices, dtype=np.int32)
-    reachable_cost = np.empty(n_vertices, dtype=np.float32)
+    reachable = np.empty(n_vertices, dtype=np.int64)
+    reachable_cost = np.empty(n_vertices, dtype=np.float64)
     n_reachable = 0
     for v in range(n_vertices):
         if costs[v] < np.inf and v!= a:
@@ -351,14 +347,14 @@ def radiation_model(
     # preallocate (overestimate, trim later)
     print("Allocating output arrays...")
     max_results = n_origins * n_dests
-    out_a = np.empty(max_results, dtype=np.int32)
-    out_b = np.empty(max_results, dtype=np.int32)
-    out_flux = np.empty(max_results, dtype=np.float32)
-    out_cost = np.empty(max_results, dtype=np.float32)
-    out_s_ab = np.empty(max_results, dtype=np.float32)
-    out_m_a = np.empty(max_results, dtype=np.float32)
-    out_n_b = np.empty(max_results, dtype=np.float32)
-    traffic_ij = np.zeros(n_edges, dtype=np.float32)
+    out_a = np.empty(max_results, dtype=np.int64)
+    out_b = np.empty(max_results, dtype=np.int64)
+    out_flux = np.empty(max_results, dtype=np.float64)
+    out_cost = np.empty(max_results, dtype=np.float64)
+    out_s_ab = np.empty(max_results, dtype=np.float64)
+    out_m_a = np.empty(max_results, dtype=np.float64)
+    out_n_b = np.empty(max_results, dtype=np.float64)
+    traffic_ij = np.zeros(n_edges, dtype=np.float64)
     
     result_idx = 0
     
@@ -399,7 +395,6 @@ def radiation_model(
                 result_idx += 1
     
     print("Finished. Trimming results...")
-    # trim to actual size
     return (
         out_a[:result_idx],
         out_b[:result_idx],
@@ -417,12 +412,11 @@ def local_detour_costs(
     idxptr: np.ndarray,
     indices: np.ndarray,
     weights: np.ndarray,
-    # traffic_ij: np.ndarray,
     n_vertices: int,
     max_cost: float = np.inf,
 ) -> np.ndarray:
     n_edges = len(indices)
-    criticality = np.zeros(n_edges, dtype=np.float32)
+    criticality = np.zeros(n_edges, dtype=np.float64)
 
     assert len(indices) == len(weights)
     
@@ -430,16 +424,10 @@ def local_detour_costs(
         print(f"Computing local detour costs for node {u + 1} / {n_vertices}")
         for edge_idx in range(idxptr[u], idxptr[u + 1]):
             v = indices[edge_idx]
-            # flow = traffic_ij[edge_idx]
-            
-            # if flow <= 0:
-                # continue
             
             original_weight = weights[edge_idx]
             weights[edge_idx] = np.inf
             
-            # 2. Find local detour u -> v
-            # Note: max_dist can be original_weight * 5 to speed up search
             dists, _ = dijkstra_with_heap(
                 idxptr, indices, weights, u, n_vertices,
                 max_dist=max_cost
