@@ -299,7 +299,7 @@ def accumulate_edge_traffic(
 
 
 @njit(parallel=PARALLEL)
-def radiation_model_core(
+def radiation_model(
     idxptr: np.ndarray,
     indices: np.ndarray,
     weights: np.ndarray,

@@ -4,14 +4,28 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import time
+from contextlib import contextmanager
 import traffic
 
 # parameters
-
+i = 1
 outdir = "/Users/alison/Downloads/flows/road_traffic"
-road_path = "../../results/assets/tza_roads_edges/dar_es_salaam.geoparquet"
+road_path = [
+    "../../results/assets/tza_roads_edges/dar_es_salaam.geoparquet",
+    "/Volumes/Expansion/02_oia/oia-tanzania-2025/input/assets/tza_roads_edges.parquet"
+][i]
+outpath = [os.path.join(outdir, "dar_es_salaam.gpkg"), os.path.join(outdir, "tza_roads_edges.gpkg")][i]
 pops_path = "/Users/alison/Downloads/flows/school_weights/tza_roads_weights.gpkg"
 pops_col = "population"
+
+
+@contextmanager
+def timer(name="Operation"):
+    """use as: with timer("my operation"): ..."""
+    start = time.time()
+    yield
+    print(f"{name}: {time.time() - start:.2f}s")
 
 
 def walking_time(df:pd.DataFrame) -> pd.Series:
@@ -77,16 +91,16 @@ if __name__ == "__main__":
     csr_data = traffic.edges_to_csr(edges, weights, n_vertices, directed=False)
     idxptr, indices, csr_weights, csr_edges, sort_idx = csr_data
 
-    # run core
-    *res, flows = traffic.radiation_model_core(
-        idxptr, indices, csr_weights, n_vertices,
-        origin_nodes, dest_nodes, pops,
-        min_cost=0,
-        max_cost=120.0,
-        zeta=zeta,
-        flux_threshold=0.0,
-        use_heap=True
-    )
+    with timer("radiation model"):
+        *res, flows = traffic.radiation_model(
+            idxptr, indices, csr_weights, n_vertices,
+            origin_nodes, dest_nodes, pops,
+            min_cost=0,
+            max_cost=120.0,
+            zeta=zeta,
+            flux_threshold=0.0,
+            use_heap=True
+        )
 
     out_a, out_b, out_flux, out_cost, out_s_ab, out_m_a, out_n_b = res
 
@@ -102,23 +116,8 @@ if __name__ == "__main__":
     
     print(od_matrix.shape)
 
-    # %%
-    import traffic
-    import time
-    from importlib import reload
-    reload(traffic)
-    from contextlib import contextmanager
-
-    @contextmanager
-    def timer(name="Operation"):
-        """use as: with timer("my operation"): ..."""
-        start = time.time()
-        yield
-        print(f"{name}: {time.time() - start:.2f}s")
-
 
     with timer("local detour costs"):
-        #! add a max cost parameter here
         detour_costs = traffic.local_detour_costs(
             idxptr, indices, csr_weights, n_vertices,
             max_cost=120.0
@@ -141,83 +140,47 @@ if __name__ == "__main__":
         ax.set_ylabel("Modeled trips (flux)")
         ax.set_yscale('log')
     
-    # %% map back to road edges
+    # map back to road edges
     edge_ids = roads[["id", "from_idx", "to_idx"]].set_index(["from_idx", "to_idx"]).to_dict()
     edge_ids_rev = roads[["id", "to_idx", "from_idx"]].set_index(["to_idx", "from_idx"]).to_dict()
     edge_ids = {**edge_ids["id"], **edge_ids_rev["id"]}
 
-    # %%
-
+    # re-order flows to match edges
     flows = flows[sort_idx]
     flows_fwd = flows[:len(edges)]
     flows_bwd = flows[len(edges):]
     flows = flows_fwd + flows_bwd
 
-    # %%
+    # re-order detour costs to match edges
     detour_costs = detour_costs[sort_idx]
     detour_costs = detour_costs[:len(edges)]
     detour_costs_bwd = detour_costs[len(edges):]
     assert np.allclose(detour_costs, detour_costs_bwd)
 
-    # %% output traffic info
+    # output traffic info
     traffic_df = pd.DataFrame({
         "from_idx": edges[:, 0],
         "to_idx": edges[:, 1],
         "traffic": flows,
         "detour_cost": detour_costs
     })
-    # %%
-    len(edges)
-    len(traffic_df)
-    # okay this bit is tricky
-    # we have some duplicated edges we want to keep, so we can't just do a groupby
-    # but we also want to count traffic both ways so we need to sum the traffic
-    # detour costs should be the same either way
 
-    traffic_fwd = traffic_df.iloc[:len(edges)].copy()
-    traffic_bwd = traffic_df.iloc[len(edges):].copy()
-    # %%
-    traffic_fwd
-    # %%
-    
-    # %%
-    traffic_df = traffic_df.drop_duplicates()
+    roads = roads.reset_index(drop=True)
+    assert traffic_df["from_idx"].equals(roads["from_idx"]), "From indices don't match!"
+    assert traffic_df["to_idx"].equals(roads["to_idx"]), "To indices don't match!"
 
-    traffic_df["id"] = traffic_df.apply(
-        lambda row: edge_ids.get((row["from_idx"], row["to_idx"]), None),
-        axis=1
-    )
-    # %%
-    print(traffic_df[traffic_df["id"] == "tza_roade_219945"])
-    # %%
-    roads[roads["id"] == "tza_roade_219945"]
-    # %%
-    idxptr[9501]
-    # %%
-    print(f"{indices[idxptr[9501]:idxptr[9502]]=}")
-    # %%
-    print(f"{weights[idxptr[9501]:idxptr[9502]]=}")
-    # %%
-    # traffic_df[traffic_df["id"].duplicated()]
-    traffic_grouped = traffic_df.groupby(["id"], as_index=False)[["traffic", "detour_cost"]].agg({
-        "traffic": "sum",
-        "detour_cost": "std"
-    })
-    traffic_grouped["detour_cost"].idxmax()
 
-    # %%
+    traffic_gdf = pd.concat([
+        roads, traffic_df[["traffic", "detour_cost"]]
+    ], axis=1)
+    traffic_gdf["cost_unit"] = "walking time (minutes)"
 
-    traffic_gdf = traffic_df.merge(
-        roads,
-        left_on=["id"],
-        right_on=["id"],
-        how="left"
-    )
-
+    # save
     traffic_gdf = gpd.GeoDataFrame(traffic_gdf, geometry="geometry", crs=roads.crs)
-    traffic_gdf.to_file(os.path.join(outdir, "dar_es_salaam.gpkg"), driver="GPKG")
-    print(f"Saved traffic to {outdir}/dar_es_salaam.gpkg")
+    traffic_gdf.to_file(outpath, driver="GPKG")
+    print(f"Saved traffic to {outpath}")
     print(traffic_gdf.head())
+    # %%
 
     for col in traffic_gdf.columns:
         print(col)
