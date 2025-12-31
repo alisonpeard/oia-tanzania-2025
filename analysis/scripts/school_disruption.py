@@ -1,4 +1,5 @@
-"""Should not do. Treats hazards maps as events.
+"""
+Network-wide criticality analysis for every single edge.
 
 Re-route traffic for every flood hazard. Treats hazards as maps.
 """
@@ -74,10 +75,10 @@ if __name__ == "__main__":
     roads["self_loop"] = roads["from_id"] == roads["to_id"]
     roads = roads[~roads["self_loop"]].copy()
     #! start of temporary: to see if it fixes the mismatches in final fluxes
-    roads['min_node'] = roads[['from_id', 'to_id']].min(axis=1)
-    roads['max_node'] = roads[['from_id', 'to_id']].max(axis=1)
-    roads = roads.loc[roads.groupby(['min_node', 'max_node'])['walking_time'].idxmin()].copy()
-    roads = roads.drop(columns=['min_node', 'max_node'])
+    # roads['min_node'] = roads[['from_id', 'to_id']].min(axis=1)
+    # roads['max_node'] = roads[['from_id', 'to_id']].max(axis=1)
+    # roads = roads.loc[roads.groupby(['min_node', 'max_node'])['walking_time'].idxmin()].copy()
+    # roads = roads.drop(columns=['min_node', 'max_node'])
     #! end of temporary
     roads = roads.reset_index(drop=True)
 
@@ -114,7 +115,7 @@ if __name__ == "__main__":
 
     # compressed sparse row graph
     csr_data = traffic.edges_to_csr(edges, weights, n_vertices, directed=False)
-    idxptr, indices, csr_weights, csr_edges, sort_idx = csr_data
+    idxptr, indices, csr_weights, csr_edges, sort_idx, orig_to_csr = csr_data
 
     # %% traffic flows
     with timer("radiation model"):
@@ -169,7 +170,7 @@ if __name__ == "__main__":
         with timer(f"chunk {i}"):  
             res = traffic.compute_edge_disruptions(
                 chunk_edges, edge_idxs, od_indices,
-                idxptr, indices, sort_idx, csr_weights,
+                idxptr, indices, orig_to_csr, csr_weights,
                 out_a, out_b, out_cost, out_flux,
                 n_vertices, max_cost
             )

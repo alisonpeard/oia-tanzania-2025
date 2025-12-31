@@ -11,13 +11,13 @@ import numba
 
 PARALLEL = True
 
-@numba.njit
-def safe_pack(u, v):
-    """Safely pack two int32 into one int64, order-invariant."""
-    if u < v:
-        return (int(u) << 32) | (int(v) & 0xFFFFFFFF)
-    else:
-        return (int(v) << 32) | (int(u) & 0xFFFFFFFF)
+# @numba.njit
+# def safe_pack(u, v):
+#     """Safely pack two int32 into one int64, order-invariant."""
+#     if u < v:
+#         return (int(u) << 32) | (int(v) & 0xFFFFFFFF)
+#     else:
+#         return (int(v) << 32) | (int(u) & 0xFFFFFFFF)
 
 
 def edges_to_csr(
@@ -59,8 +59,15 @@ def edges_to_csr(
     indices = edges[:, 1].astype(np.int64)
     csr_weights = weights.astype(np.float64)
     csr_edges = edges.astype(np.int64)
+
+    # crs mappings
+    inverse_sort = np.argsort(sort_idx)
+    n_original = len(edges) // 2  # after doubling
+    orig_to_csr = np.empty((n_original, 2), dtype=np.int64)
+    orig_to_csr[:, 0] = inverse_sort[:n_original]        # forward edges
+    orig_to_csr[:, 1] = inverse_sort[n_original:]        # backward edges
     
-    return idxptr, indices, csr_weights, csr_edges, np.argsort(sort_idx)
+    return idxptr, indices, csr_weights, csr_edges, inverse_sort, orig_to_csr
 
 
 @numba.njit
@@ -93,6 +100,7 @@ def dijkstra(
     """
     distances = np.full(n_vertices, np.inf, dtype=np.float64)
     predecessors = np.full(n_vertices, -1, dtype=np.int64)
+    predecessor_edges = np.full(n_vertices, -1, dtype=np.int64)
     visited = np.zeros(n_vertices, dtype=np.bool_)
     
     distances[source] = 0.0
@@ -118,8 +126,9 @@ def dijkstra(
             if new_dist < distances[v]:
                 distances[v] = new_dist
                 predecessors[v] = u
+                predecessor_edges[v] = edge_idx
     
-    return distances, predecessors
+    return distances, predecessors, predecessor_edges
 
 
 @numba.njit
@@ -153,6 +162,7 @@ def dijkstra_with_heap(
     """
     distances = np.full(n_vertices, np.inf, dtype=np.float64)
     predecessors = np.full(n_vertices, -1, dtype=np.int64)
+    predecessor_edges = np.full(n_vertices, -1, dtype=np.int64)
     visited = np.zeros(n_vertices, dtype=np.bool_)
     
     # binary heap arrays
@@ -210,6 +220,7 @@ def dijkstra_with_heap(
             if new_dist < distances[v]:
                 distances[v] = new_dist
                 predecessors[v] = u
+                predecessor_edges[v] = edge_idx
                 
                 # push to heap (sift up)
                 heap_size += 1
@@ -221,7 +232,7 @@ def dijkstra_with_heap(
                 heap_dist[pos] = new_dist
                 heap_node[pos] = v
     
-    return distances, predecessors
+    return distances, predecessors, predecessor_edges
 
 
 @numba.njit
@@ -306,6 +317,7 @@ def accumulate_edge_traffic(
     indices: np.ndarray,
     costs: np.ndarray,
     predecessors: np.ndarray,
+    predecessor_edges: np.ndarray,
     dest_nodes: np.ndarray,
     sorted_idx: np.ndarray,
     fluxes: np.ndarray,
@@ -347,10 +359,13 @@ def accumulate_edge_traffic(
         if pred == -1 or pred == v:
             continue
         # find edge index pred -> v
-        for edge_idx in range(idxptr[pred], idxptr[pred + 1]):
-            if indices[edge_idx] == v:
-                traffic_ij[edge_idx] += flux_v
-                break
+        # for edge_idx in range(idxptr[pred], idxptr[pred + 1]):
+        #     if indices[edge_idx] == v:
+        #         traffic_ij[edge_idx] += flux_v
+        #         break
+        edge_idx = predecessor_edges[v]
+        if edge_idx >= 0:
+            traffic_ij[edge_idx] += flux_v
         node_flux[pred] += flux_v
 
 
@@ -410,9 +425,9 @@ def radiation_model(
         
         # shortest paths from a
         if use_heap:
-            costs_a, predecessors_a = dijkstra_with_heap(idxptr, indices, weights, a, n_vertices, max_cost)
+            costs_a, predecessors_a, predecessor_edges_a = dijkstra_with_heap(idxptr, indices, weights, a, n_vertices, max_cost)
         else:
-            costs_a, predecessors_a = dijkstra(idxptr, indices, weights, a, n_vertices, max_cost)
+            costs_a, predecessors_a, predecessor_edges_a = dijkstra(idxptr, indices, weights, a, n_vertices, max_cost)
                 
         # compute fluxes
         sorted_idx, fluxes_a, s_abs = compute_flux_for_origin(
@@ -420,7 +435,7 @@ def radiation_model(
         )
 
         accumulate_edge_traffic(
-            a, n_vertices, idxptr, indices, costs_a, predecessors_a,
+            a, n_vertices, idxptr, indices, costs_a, predecessors_a, predecessor_edges_a,
             dest_nodes, sorted_idx, fluxes_a, traffic_ij
         )
 
@@ -440,17 +455,17 @@ def radiation_model(
                 curr = dest_nodes[idx]
                 while curr != a and curr != -1:
                     prev = predecessors_a[curr]
+                    pred_e = predecessor_edges_a[curr]
                     if prev == -1 or prev == curr:
                         break
                     
                     # pack edge and map to current OD
                     if dep_ptr < est_dep_size:
-                        dep_edge_ids[dep_ptr] = safe_pack(prev, curr)
+                        dep_edge_ids[dep_ptr] = pred_e#safe_pack(prev, curr)
                         dep_od_indices[dep_ptr] = result_idx
                         dep_ptr += 1
                     
                     curr = prev
-                # ----------------------------------------------
 
                 result_idx += 1
     
@@ -642,7 +657,8 @@ def compute_edge_disruptions(
     od_indices: np.ndarray,
     idxptr: np.ndarray,
     indices: np.ndarray,
-    sort_idx: np.ndarray,
+    orig_to_csr: np.ndarray,
+    # sort_idx: np.ndarray,
     weights: np.ndarray,
     out_a: np.ndarray,
     out_b: np.ndarray,
@@ -674,10 +690,20 @@ def compute_edge_disruptions(
     for i in numba.prange(len(edges)):
         tid = numba.get_thread_id()
         u, v = edges[i]
-        packed_query = safe_pack(u, v)
-        start = np.searchsorted(edge_idxs, packed_query, side='left')
-        end = np.searchsorted(edge_idxs, packed_query, side='right')
-        od_idx = od_indices[start:end]
+        # packed_query = safe_pack(u, v)
+        # start = np.searchsorted(edge_idxs, packed_query, side='left')
+        # end = np.searchsorted(edge_idxs, packed_query, side='right')
+        # od_idx = od_indices[start:end]
+        csr_fwd = orig_to_csr[i, 0]
+        csr_bwd = orig_to_csr[i, 1]
+
+        start_fwd = np.searchsorted(edge_idxs, csr_fwd, side='left')
+        end_fwd = np.searchsorted(edge_idxs, csr_fwd, side='right')
+
+        start_bwd = np.searchsorted(edge_idxs, csr_bwd, side='left')
+        end_bwd = np.searchsorted(edge_idxs, csr_bwd, side='right')
+
+        od_idx = np.concatenate((od_indices[start_fwd:end_fwd], od_indices[start_bwd:end_bwd]))
         if len(od_idx) == 0:
             continue
 
@@ -685,7 +711,10 @@ def compute_edge_disruptions(
         edge_weight = toggle_edge(idxptr, indices, _weights[tid], u, v, np.inf)
 
         # get unique origins in affected OD pairs
+        # ! could cause numba issues
         origins = np.unique(out_a[od_idx])
+
+        # TODO: better approach:
 
         weighted_detours = 0.0
         detour_flux = 0.0
