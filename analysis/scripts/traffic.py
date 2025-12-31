@@ -1,10 +1,23 @@
+"""
+Radiation model using CSR network representation and Numba JIT compilation.
+
+indices: flattened array of target vertices for each edge.
+idxptr: pointer to start of each vertex's edge list in indices.
+"""
 import numpy as np
 import pandas as pd
-from numba import njit
-from numba import prange
+import numba
 
 
 PARALLEL = True
+
+@numba.njit
+def safe_pack(u, v):
+    """Safely pack two int32 into one int64, order-invariant."""
+    if u < v:
+        return (int(u) << 32) | (int(v) & 0xFFFFFFFF)
+    else:
+        return (int(v) << 32) | (int(u) & 0xFFFFFFFF)
 
 
 def edges_to_csr(
@@ -26,7 +39,6 @@ def edges_to_csr(
         idxptr, indices, csr_weights in CSR format
     """
     if not directed:
-        # add reverse edges
         edges = np.vstack([edges, edges[:, ::-1]])
         weights = np.concatenate([weights, weights])
     
@@ -51,7 +63,7 @@ def edges_to_csr(
     return idxptr, indices, csr_weights, csr_edges, np.argsort(sort_idx)
 
 
-@njit
+@numba.njit
 def dijkstra(
     idxptr: np.ndarray,
     indices: np.ndarray,
@@ -60,7 +72,25 @@ def dijkstra(
     n_vertices: int,
     max_dist: float = np.inf,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Dijkstra with array scan. O(V^2). Better for dense graphs or small max_dist."""
+    """Dijkstra with array scan. O(V^2). Better for dense graphs or small max_dist.
+
+    V linear scans of O(V): O(V^2).
+    
+    Args:
+        idxptr: CSR row (index) pointers (length n_vertices + 1)
+        indices: CSR column indices (length n_edges)
+        weights: CSR edge weights (length n_edges)
+        source: source vertex
+        n_vertices: number of vertices in graph
+        max_dist: stop exploring beyond this distance
+    
+    Values:
+        distances: Array of length n_vertices with shortest
+            distance from source to each vertex (inf if unreachable).
+        predecessors: Array of length n_vertices with predecessor
+            of each vertex on shortest path to source (-1 if unreachable,
+            source for source).
+    """
     distances = np.full(n_vertices, np.inf, dtype=np.float64)
     predecessors = np.full(n_vertices, -1, dtype=np.int64)
     visited = np.zeros(n_vertices, dtype=np.bool_)
@@ -92,17 +122,19 @@ def dijkstra(
     return distances, predecessors
 
 
-@njit
+@numba.njit
 def dijkstra_with_heap(
     idxptr: np.ndarray,
     indices: np.ndarray,
     weights: np.ndarray,
     source: int,
     n_vertices: int,
-    max_dist: float = np.inf,
+    max_dist: float = np.inf
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Dijkstra's algorithm with binary heap. Better for sparse graphs.
+
+    O((V + E) log V).
     
     Args:
         idxptr: CSR row (index) pointers (length n_vertices + 1)
@@ -112,9 +144,12 @@ def dijkstra_with_heap(
         n_vertices: number of vertices in graph
         max_dist: stop exploring beyond this distance
     
-    Returns:
-        distances: shortest distance from source to each vertex (inf if unreachable)
-        predecessors: predecessor of each vertex on shortest path (-1 if unreachable, source for source)
+    Values:
+        distances: Array of length n_vertices with shortest
+            distance from source to each vertex (inf if unreachable).
+        predecessors: Array of length n_vertices with predecessor
+            of each vertex on shortest path to source (-1 if unreachable,
+            source for source).
     """
     distances = np.full(n_vertices, np.inf, dtype=np.float64)
     predecessors = np.full(n_vertices, -1, dtype=np.int64)
@@ -158,9 +193,11 @@ def dijkstra_with_heap(
             heap_dist[pos] = last_dist
             heap_node[pos] = last_node
         
-        # skip if already visited or beyond max_dist
-        if visited[u] or dist_u > max_dist:
+        # skip if already visited or break if beyond max_dist
+        if visited[u]:
             continue
+        if dist_u > max_dist:
+            break
         visited[u] = True
         
         # relax edges from u
@@ -187,7 +224,7 @@ def dijkstra_with_heap(
     return distances, predecessors
 
 
-@njit
+@numba.njit
 def compute_flux_for_origin(
     a: int,
     m_a: float,
@@ -261,7 +298,7 @@ def compute_flux_for_origin(
     return sorted_idx, fluxes, s_abs
 
 
-@njit
+@numba.njit
 def accumulate_edge_traffic(
     a: int,
     n_vertices: int,
@@ -317,7 +354,7 @@ def accumulate_edge_traffic(
         node_flux[pred] += flux_v
 
 
-@njit
+@numba.njit
 def radiation_model(
     idxptr: np.ndarray,
     indices: np.ndarray,
@@ -330,7 +367,7 @@ def radiation_model(
     max_cost: float,
     zeta: float,
     flux_threshold: float = 1.0,
-    use_heap: bool = True,
+    use_heap: bool = True
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Core radiation model loop.
@@ -355,6 +392,12 @@ def radiation_model(
     out_m_a = np.empty(max_results, dtype=np.float64)
     out_n_b = np.empty(max_results, dtype=np.float64)
     traffic_ij = np.zeros(n_edges, dtype=np.float64)
+
+    # pre-allocate dependency arrays for OD pairs
+    est_dep_size = max_results * 50 
+    dep_edge_ids = np.empty(est_dep_size, dtype=np.int64)
+    dep_od_indices = np.empty(est_dep_size, dtype=np.int32)
+    dep_ptr = 0
     
     result_idx = 0
     
@@ -392,8 +435,29 @@ def radiation_model(
                 out_s_ab[result_idx] = s_abs[i]
                 out_m_a[result_idx] = m_a
                 out_n_b[result_idx] = dest_pops[idx]
+                
+                # trace path and store dependencies
+                curr = dest_nodes[idx]
+                while curr != a and curr != -1:
+                    prev = predecessors_a[curr]
+                    if prev == -1 or prev == curr:
+                        break
+                    
+                    # pack edge and map to current OD
+                    if dep_ptr < est_dep_size:
+                        dep_edge_ids[dep_ptr] = safe_pack(prev, curr)
+                        dep_od_indices[dep_ptr] = result_idx
+                        dep_ptr += 1
+                    
+                    curr = prev
+                # ----------------------------------------------
+
                 result_idx += 1
     
+    if dep_ptr >= est_dep_size:
+        print("WARNING: Dependency arrays reached capacity. Disruption results will be incomplete.")
+        print("Increase est_dep_size (currently max_results * 50).")
+
     print("Finished. Trimming results...")
     return (
         out_a[:result_idx],
@@ -403,11 +467,13 @@ def radiation_model(
         out_s_ab[:result_idx],
         out_m_a[:result_idx],
         out_n_b[:result_idx],
+        dep_edge_ids[:dep_ptr],
+        dep_od_indices[:dep_ptr],
         traffic_ij,
     )
 
 
-@njit(parallel=PARALLEL)
+@numba.njit(parallel=PARALLEL)
 def local_detour_costs(
     idxptr: np.ndarray,
     indices: np.ndarray,
@@ -420,7 +486,7 @@ def local_detour_costs(
 
     assert len(indices) == len(weights)
     
-    for u in prange(n_vertices):
+    for u in numba.prange(n_vertices):
         print(f"Computing local detour costs for node {u + 1} / {n_vertices}")
         for edge_idx in range(idxptr[u], idxptr[u + 1]):
             v = indices[edge_idx]
@@ -442,3 +508,222 @@ def local_detour_costs(
             weights[edge_idx] = original_weight
             
     return criticality
+
+# above here is for traffic assignment 
+# below here is for disruption analysis
+
+@numba.njit
+def dijkstra_with_heap_inplace(
+    idxptr: np.ndarray,
+    indices: np.ndarray,
+    weights: np.ndarray,
+    source: int,
+    distances: np.ndarray[np.float64],
+    predecessors: np.ndarray[np.int64],
+    _visited: np.ndarray[np.bool_],
+    _heap_dist: np.ndarray[np.float64],
+    _heap_node: np.ndarray[np.int64],
+    max_cost: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Dijkstra's algorithm with binary heap. Better for sparse graphs.
+
+    Pre-alloc version to avoid repeated memory allocation.
+
+    O((V + E) log V).
+    
+    Args:
+        idxptr: CSR row (index) pointers (length n_vertices + 1)
+        indices: CSR column indices (length n_edges)
+        weights: CSR edge weights (length n_edges)
+        source: source vertex
+        n_vertices: number of vertices in graph
+        max_dist: stop exploring beyond this distance
+    
+    Values:
+        distances: Array of length n_vertices with shortest
+            distance from source to each vertex (inf if unreachable).
+        predecessors: Array of length n_vertices with predecessor
+            of each vertex on shortest path to source (-1 if unreachable,
+            source for source).
+    """
+    distances.fill(np.inf)
+    predecessors.fill(-1)
+    _visited.fill(False)
+    
+    # binary heap arrays
+    heap_size = 0
+    
+    # initialise source
+    distances[source] = 0.0
+    predecessors[source] = source
+    
+    # push source to heap
+    heap_size = 1
+    _heap_dist[1] = 0.0
+    _heap_node[1] = source
+    
+    while heap_size > 0:
+        # pop minimum
+        dist_u = _heap_dist[1]
+        u = _heap_node[1]
+        
+        # move last element to root and sift down
+        last_dist = _heap_dist[heap_size]
+        last_node = _heap_node[heap_size]
+        heap_size -= 1
+        
+        if heap_size > 0:
+            pos = 1
+            while pos * 2 <= heap_size:
+                child = pos * 2
+                if child + 1 <= heap_size and _heap_dist[child + 1] < _heap_dist[child]:
+                    child += 1
+                if last_dist <= _heap_dist[child]:
+                    break
+                _heap_dist[pos] = _heap_dist[child]
+                _heap_node[pos] = _heap_node[child]
+                pos = child
+            _heap_dist[pos] = last_dist
+            _heap_node[pos] = last_node
+
+        if _visited[u]:
+            continue
+        if dist_u > max_cost:
+            break
+
+        _visited[u] = True
+        
+        # relax edges from u
+        for edge_idx in range(idxptr[u], idxptr[u + 1]):
+            v = indices[edge_idx]
+            if _visited[v]:
+                continue
+            
+            new_dist = dist_u + weights[edge_idx]
+            if new_dist < distances[v]:
+                distances[v] = new_dist
+                predecessors[v] = u
+                
+                # push to heap (sift up)
+                heap_size += 1
+                pos = heap_size
+                while pos > 1 and new_dist < _heap_dist[pos // 2]:
+                    _heap_dist[pos] = _heap_dist[pos // 2]
+                    _heap_node[pos] = _heap_node[pos // 2]
+                    pos //= 2
+                _heap_dist[pos] = new_dist
+                _heap_node[pos] = v
+
+
+
+@numba.njit
+def toggle_edge(idxptr, indices, csr_weights, u, v, new_val):
+    """Finds and updates weight for u->v and v->u in CSR."""
+    # Search u -> v
+    old_val = -1.0
+    for k in range(idxptr[u], idxptr[u+1]):
+        if indices[k] == v:
+            old_val = csr_weights[k]
+            csr_weights[k] = new_val
+            break
+    # Search v -> u
+    for k in range(idxptr[v], idxptr[v+1]):
+        if indices[k] == u:
+            csr_weights[k] = new_val
+            break
+    return old_val
+
+
+@numba.njit(parallel=True)
+def compute_edge_disruptions(
+    edges: np.ndarray,
+    edge_idxs: np.ndarray,
+    od_indices: np.ndarray,
+    idxptr: np.ndarray,
+    indices: np.ndarray,
+    sort_idx: np.ndarray,
+    weights: np.ndarray,
+    out_a: np.ndarray,
+    out_b: np.ndarray,
+    out_cost: np.ndarray,
+    out_flux: np.ndarray,
+    n_vertices: int,
+    max_cost: float
+):
+    """Compute disruption impacts for each edge."""
+    # # pre-allocate workspace arrays for each thread
+    n_threads = numba.config.NUMBA_NUM_THREADS
+    _dists = np.empty((n_threads, n_vertices), dtype=np.float64)
+    _preds = np.empty((n_threads, n_vertices), dtype=np.int32)
+    _visited = np.empty((n_threads, n_vertices), dtype=np.bool_)
+    _heap_dist = np.empty((n_threads, n_vertices + 1), dtype=np.float64)
+    _heap_node = np.empty((n_threads, n_vertices + 1), dtype=np.int64)
+    # _weights = np.repeat(weights[np.newaxis, :], n_threads, axis=0)
+
+    _weights = np.empty((n_threads, len(weights)), dtype=np.float64)
+    for t in range(n_threads):
+        _weights[t, :] = weights[:]
+
+    # pre-allocate results arrays
+    total_detour_flux = np.zeros(len(edges), dtype=np.float64)
+    total_isolated_flux = np.zeros(len(edges), dtype=np.float64)
+    total_weighted_detours = np.zeros(len(edges), dtype=np.float64)
+    total_flux = np.zeros(len(edges), dtype=np.float64)
+
+    for i in numba.prange(len(edges)):
+        tid = numba.get_thread_id()
+        u, v = edges[i]
+        packed_query = safe_pack(u, v)
+        start = np.searchsorted(edge_idxs, packed_query, side='left')
+        end = np.searchsorted(edge_idxs, packed_query, side='right')
+        od_idx = od_indices[start:end]
+        if len(od_idx) == 0:
+            continue
+
+        # disrupt edge
+        edge_weight = toggle_edge(idxptr, indices, _weights[tid], u, v, np.inf)
+
+        # get unique origins in affected OD pairs
+        origins = np.unique(out_a[od_idx])
+
+        weighted_detours = 0.0
+        detour_flux = 0.0
+        isolated_flux = 0.0
+        base_flux = 0.0
+
+        for origin in origins:
+            dijkstra_with_heap_inplace(
+                idxptr, indices, _weights[tid], origin,
+                _dists[tid], _preds[tid], _visited[tid], _heap_dist[tid], _heap_node[tid],
+                max_cost
+            )
+            # find affected OD pairs from this origin
+            for idx in od_idx:
+                if out_a[idx] != origin:
+                    continue
+                flux_idx = out_flux[idx]
+                if flux_idx <= 0:
+                    continue
+                new_cost = _dists[tid, out_b[idx]]
+
+                base_flux += flux_idx
+                if np.isfinite(new_cost):
+                    detour_flux += flux_idx
+                    detour_cost = (new_cost - out_cost[idx])
+                    weighted_detours += flux_idx * detour_cost
+                else:
+                    isolated_flux += flux_idx
+
+        # update total disruption for edge
+        total_flux[i] = base_flux # for validation later
+        total_detour_flux[i] = detour_flux
+        total_isolated_flux[i] = isolated_flux
+        total_weighted_detours[i] = weighted_detours
+
+        _  = toggle_edge(idxptr, indices, _weights[tid], u, v, edge_weight)
+
+        if tid == 0 and i % 100 == 0:
+            print(f"Processed {i}/{len(edges)} edges.")
+    
+    return total_flux, total_detour_flux, total_isolated_flux, total_weighted_detours

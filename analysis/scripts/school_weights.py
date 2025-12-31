@@ -16,7 +16,7 @@ import geopandas as gpd
 roads_path = "/Users/alison/Downloads/flows/road_weights/tza_roads_weights.gpkg"
 schools_path = "/Users/alison/Downloads/flows/schools_hospitals/schools_JRC_clean_duplicate_TZA.gpkg"
 out_path = "/Users/alison/Downloads/flows/school_weights/tza_roads_weights.gpkg"
-SCHOOL_GOING_FRACTION = 0.32
+SCHOOL_GOING_FRACTION = 0.37
 POPULATION = "pop_2030"
 
 

@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
     # traffic flows
     with timer("radiation model"):
-        *res, flows = traffic.radiation_model(
+        *res, edge_idxs, od_indices, flows = traffic.radiation_model(
             idxptr, indices, csr_weights, n_vertices,
             origin_nodes, dest_nodes, pops,
             min_cost=0,
@@ -121,6 +121,7 @@ if __name__ == "__main__":
         )
 
     out_a, out_b, out_flux, out_cost, out_s_ab, out_m_a, out_n_b = res
+    # %%
     od_matrix = pd.DataFrame({
         'a': out_a,
         'b': out_b,
@@ -131,8 +132,7 @@ if __name__ == "__main__":
         'flux': out_flux,
     })
 
-    # %% figures
-    # average walking time to school
+    # %% figures: average walking time to school
     fig, ax = plt.subplots(figsize=(4, 2.5))
     ax.hist(od_matrix['cost'], weights=od_matrix['flux'],
              bins=50, color='skyblue', edgecolor='k')
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     edge_ids = {**edge_ids["id"], **edge_ids_rev["id"]}
 
     # re-order flows to match edges
-    flows = flows[sort_idx] #! this is crashing now because flows is only the O-D pairs
+    flows = flows[sort_idx]
     flows_fwd = flows[:len(edges)]
     flows_bwd = flows[len(edges):]
     flows = flows_fwd + flows_bwd
