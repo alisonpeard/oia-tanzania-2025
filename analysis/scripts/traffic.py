@@ -1,6 +1,8 @@
 """
 Radiation model using CSR network representation and Numba JIT compilation.
 
+Could do with a tidy-up.
+
 indices: flattened array of target vertices for each edge.
 idxptr: pointer to start of each vertex's edge list in indices.
 """
@@ -10,14 +12,6 @@ import numba
 
 
 PARALLEL = True
-
-# @numba.njit
-# def safe_pack(u, v):
-#     """Safely pack two int32 into one int64, order-invariant."""
-#     if u < v:
-#         return (int(u) << 32) | (int(v) & 0xFFFFFFFF)
-#     else:
-#         return (int(v) << 32) | (int(u) & 0xFFFFFFFF)
 
 
 def edges_to_csr(
@@ -466,9 +460,9 @@ def radiation_model(
                         dep_ptr += 1
                     
                     curr = prev
-
                 result_idx += 1
-    
+
+
     if dep_ptr >= est_dep_size:
         print("WARNING: Dependency arrays reached capacity. Disruption results will be incomplete.")
         print("Increase est_dep_size (currently max_results * 50).")
@@ -525,6 +519,7 @@ def local_detour_costs(
     return criticality
 
 # above here is for traffic assignment 
+# -------------------------------------
 # below here is for disruption analysis
 
 @numba.njit
@@ -675,7 +670,6 @@ def compute_edge_disruptions(
     _visited = np.empty((n_threads, n_vertices), dtype=np.bool_)
     _heap_dist = np.empty((n_threads, n_vertices + 1), dtype=np.float64)
     _heap_node = np.empty((n_threads, n_vertices + 1), dtype=np.int64)
-    # _weights = np.repeat(weights[np.newaxis, :], n_threads, axis=0)
 
     _weights = np.empty((n_threads, len(weights)), dtype=np.float64)
     for t in range(n_threads):
@@ -690,10 +684,6 @@ def compute_edge_disruptions(
     for i in numba.prange(len(edges)):
         tid = numba.get_thread_id()
         u, v = edges[i]
-        # packed_query = safe_pack(u, v)
-        # start = np.searchsorted(edge_idxs, packed_query, side='left')
-        # end = np.searchsorted(edge_idxs, packed_query, side='right')
-        # od_idx = od_indices[start:end]
         csr_fwd = orig_to_csr[i, 0]
         csr_bwd = orig_to_csr[i, 1]
 
@@ -711,11 +701,9 @@ def compute_edge_disruptions(
         edge_weight = toggle_edge(idxptr, indices, _weights[tid], u, v, np.inf)
 
         # get unique origins in affected OD pairs
-        # ! could cause numba issues
+        # ! could cause numba issues using input arg
+        # TODO: better approach
         origins = np.unique(out_a[od_idx])
-
-        # TODO: better approach:
-
         weighted_detours = 0.0
         detour_flux = 0.0
         isolated_flux = 0.0
