@@ -87,3 +87,4 @@ if __name__ == "__main__":
     summary_final.to_csv("~/Desktop/tza_school_roads_hazard_disruption_summary.csv", index=False)
     summary_final.head()
     # %%
+    summary_final.head()

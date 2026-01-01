@@ -6,13 +6,23 @@ import pandas as pd
 path = "~/Desktop/tza_school_roads_hazard_disruption_summary.csv"
 
 summary = pd.read_csv(path)
+summary["total_weighted_detour_hrs"] = summary["total_weighted_detour"] / 60  # to walking mins
 summary.head()
+
+# %%
+summary_national = summary.groupby(["hazard", "epoch", "scenario", "rp", "stat"]).agg({
+    "total_isolated": "sum",
+    "total_rerouted": "sum",
+    "total_weighted_detour_hrs": "sum"
+}).reset_index()
+summary_national.head()
 # %%
 import seaborn as sns
 
 # error bar represents ssps and min/max damage curves
-hazard = "coastal"
-summary_hazard = summary[summary["hazard"] == hazard].copy()
+hazard = "fluvial"
+summary_hazard = summary_national[summary_national["hazard"] == hazard].copy()
+
 
 def minmax(x):
     return (x.min(), x.max())
@@ -56,8 +66,6 @@ plt.ylabel("Total rerouted journeys")
 plt.xlabel("Hazard type")
 plt.tight_layout()
 
-
-summary_hazard["total_weighted_detour_hrs"] = summary_hazard["total_weighted_detour"] / 60  # to walking mins
 sns.catplot(
     data=summary_hazard,
     x="epoch",
@@ -79,6 +87,20 @@ plt.tight_layout()
 
 # %%
 
-summary_hazard.head()
-# %%
-summary_hazard[["total_isolated", "total_rerouted", "total_weighted_detour"]].sum(axis=0)
+summary_hazard = summary[summary["hazard"] == hazard].copy()
+summary_hazard_rp100 = summary_hazard[summary_hazard["rp"] == 100].copy()
+
+sns.catplot(
+    data=summary_hazard_rp100,
+    x="subregion",
+    y="total_isolated",
+    hue="epoch",
+    edgecolor="k",
+    linewidth=0.25,
+    kind="bar",
+    palette="Blues",
+    errorbar=("pi", 100),
+    height=6,
+    aspect=2, # make horizontal
+    orient="x"
+)
