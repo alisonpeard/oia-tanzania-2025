@@ -227,7 +227,7 @@ if __name__ == "__main__":
         roads.set_index(["from_idx", "to_idx"])["id"].to_dict()
     )
     # res_df.to_csv(f"~/Desktop/school_costs_dar_es_salaam.csv", index=False)
-    res_df.to_csv(f"~/Desktop/school_costs_tza_roads.csv", index=False)
+    # res_df.to_csv(f"~/Desktop/school_costs_tza_roads.csv", index=False)
     # %%
     out_df = res_df[["id", "from_id", "to_id", "base_flux", "detoured_flux", "isolated_flux", "weighted_detour"]].copy()
     out_df.to_csv("~/Desktop/tza_school_roads_edge_criticality.csv", index=False)

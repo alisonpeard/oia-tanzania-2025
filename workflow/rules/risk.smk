@@ -116,11 +116,54 @@ rule all_intersections:
         expand(
             "../results/flags/{asset_geom}/{hazard}/.processed",
             asset_geom=[
-                # "tza_railway_edges",
-                "tza_airports_polygons",
+                "tza_railway_edges",
+                # "tza_airports_polygons",
                 # "tza_roads_bridges_and_culverts_nodes",
                 # "tza_roads_edges",
                 # "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
+            ],
+            hazard=[
+                "pluvial",
+                # "fluvial",
+                "coastal",
+                # "landslide",
+                # "cyclone",
+                # "hd35",
+                # "tasmax",
+                ]
+
+        )
+
+
+# these are temporary workarounds for the Tanzania 2025 project
+rule calculate_annual_metrics_cleaned:
+    """
+    snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro/annual.parquet
+    snakemake --cores 4 ../results/risk/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro/annual.parquet
+    snakemake --cores 4 ../results/risk/tza_airports_polygons/pluvial/kilimanjaro/annual.parquet
+    """
+    input:
+        vector="../results/risk_cleaned/{asset}_{geom}/{hazard}/{subregion}/profile.geoparquet"
+    output:
+        parquet="../results/risk_cleaned/{asset}_{geom}/{hazard}/{subregion}/annual.parquet"
+    log:
+        file="../logs/risk_cleaned/expectations_{geom}_{asset}_{hazard}_{subregion}.log"
+    script:
+        "../scripts/expectations.py"
+
+
+rule calculate_all_cleaned_metrics:
+    """
+    snakemake --cores 1 calculate_all_cleaned_metrics -n
+    """
+    input:
+        expand(
+            "../results/risk_cleaned/{asset_geom}/{hazard}/{subregion}/annual.parquet",
+            asset_geom=[
+                "tza_railway_edges",
+                "tza_roads_bridges_and_culverts_nodes",
+                "tza_roads_edges",
+                "tza_hubs_polygons"
             ],
             hazard=[
                 "pluvial",
@@ -128,8 +171,8 @@ rule all_intersections:
                 "coastal",
                 "landslide",
                 "cyclone",
-                "hd35",
-                "tasmax",
-                ]
-
+                # "hd35",
+                # "tasmax",
+                ],
+            subregion=get_subregions()
         )

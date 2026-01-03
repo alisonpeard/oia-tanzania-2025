@@ -1,17 +1,43 @@
 # %%
 import numpy as np
 import seaborn as sns
+import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
 
 
 path = "/Volumes/Expansion/02_oia/oia-tanzania-2025/input/assets/tza_roads_edges.parquet"
 
-
-
 gdf = gpd.read_parquet(path)
-gdf["condition"] = gdf["asset_type"].str.split("_").str[-1]
-gdf["asset_type"] = gdf["asset_type"].str.split("_").str[0]
+# gdf["condition"] = gdf["asset_type"].str.split("_").str[-1]
+# gdf["asset_type"] = gdf["asset_type"].str.split("_").str[0]
+
+conditions = ['bad', 'poor', 'fair', 'good']
+
+def extract_condition(asset_type):
+    for condition in conditions:
+        if asset_type.endswith(f"_{condition}"):
+            return condition
+    return pd.NA
+
+def remove_condition(asset_type):
+    for condition in conditions:
+        suffix = f"_{condition}"
+        if asset_type.endswith(suffix):
+            return asset_type[:-len(suffix)]
+    return asset_type
+
+def format_road_type(colname):
+    """Format road type column name for display."""
+    if colname not in ["dbst", "sbst"]:
+        colname = colname.replace("_", " ").replace(" ", "\n")
+        colname = colname.capitalize()
+    else:
+        colname = colname.upper()
+    return colname
+
+gdf["condition"] = gdf["asset_type"].apply(extract_condition)
+gdf["asset_type"] = gdf["asset_type"].apply(remove_condition)
 # %%
 assert gdf.crs == "EPSG:32735"
 gdf["length_km"] = gdf.geometry.length / 1000.0
@@ -94,8 +120,9 @@ def roadtypes(gdf, colA, colB, cmap="PuBu"):
     # Styling the axes
     g.ax_joint.set_xticks(np.arange(0.5, H))
     # Capitalize type labels for cleaner look
-    xticklabels = [str(x).replace("_", " ").capitalize() for x in pivot_df.columns]
-    g.ax_joint.set_xticklabels(xticklabels, rotation=45, ha='right')
+    # xticklabels = [str(x).replace("_", " ").capitalize() for x in pivot_df.columns]
+    xticklabels = [format_road_type(x) for x in pivot_df.columns]
+    g.ax_joint.set_xticklabels(xticklabels, rotation=0, ha='center')
     
     g.ax_joint.set_yticks(np.arange(0.5, D))
     yticklabels = [str(y).capitalize() for y in pivot_df.index]
@@ -110,8 +137,8 @@ def roadtypes(gdf, colA, colB, cmap="PuBu"):
     g.ax_marg_y.tick_params(axis='both', which='both', bottom=False, left=False, labelbottom=False, labelleft=False)
 
     # Set overall labels
-    g.ax_joint.set_xlabel(colA.replace("_", " ").capitalize())
-    g.ax_joint.set_ylabel(colB.capitalize())
+    g.ax_joint.set_xlabel("Asset type", fontweight='bold') 
+    g.ax_joint.set_ylabel("Condition", fontweight='bold')
 
     # Resize figure
     fig = plt.gcf()

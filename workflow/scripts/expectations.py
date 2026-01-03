@@ -35,6 +35,9 @@ def check_for_negatives(df:pd.DataFrame):
 def main(input, output, params=None):
     gdf = gpd.read_parquet(input.vector)
 
+    if gdf.index.name != 'id':
+        gdf = gdf.set_index('id')
+
     if gdf.empty:
         gdf.to_parquet(output.parquet, index=True)
         logging.info("Input asset file is empty, saved empty output.")
@@ -47,17 +50,27 @@ def main(input, output, params=None):
     risk_cols = hazard_cols + defended_cols + damage_cols + cost_cols
     base_cols = [col for col in gdf.columns if col not in risk_cols]
 
+    print(f"\n{gdf.head()=}\n") #! 
+
     risk_gdf = gdf[risk_cols].copy().T
+
+    print(f"\n{risk_gdf.head()=}\n") #! 
+
     risk_tuples = risk_gdf.reset_index()["index"].apply(naming.extract_hazard_info)
     risk_info = pd.DataFrame(
         risk_tuples.tolist(),
         columns=["metric", "hazard", "epoch", "scenario", "rp", "range"]
     )
     risk_gdf = risk_gdf.reset_index(drop=True).join(risk_info)
+
+    print(f"\n{risk_gdf.head()=}\n") #! 
+
     risk_gdf = risk_gdf.melt(
         id_vars=["metric", "hazard", "epoch", "scenario", "rp", "range"],
         var_name="id"
         )
+    
+    print(f"\n{risk_gdf.head()=}\n") #! 'id' is already integer here
 
     # risk_gdf["value"] = risk_gdf["value"].fillna(0.0)
 
@@ -66,11 +79,16 @@ def main(input, output, params=None):
         dropna=False
     )[["rp", "value"]]
 
+
     tqdm.pandas(desc="Calculating EAD")
 
     ead_results = risk_grouped.progress_apply(ead)
     ead_results = ead_results.reset_index()
     ead_results = ead_results.rename(columns={0: "expected"})
+
+    print(f"\n{gdf[base_cols].head()=}\n") #!
+
+    print(f"\n{ead_results.head()=}\n") #!
 
     final_gdf = gdf[base_cols].reset_index().merge(
         ead_results,
