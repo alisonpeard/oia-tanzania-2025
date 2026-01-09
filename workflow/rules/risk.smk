@@ -4,10 +4,14 @@ from warnings import warn
 
 def get_subregions():
     subregions_file = Path("../results/assets/subregions.txt")
+    exclude = ["zanzibar", "pemba"]
     if not subregions_file.exists():
         return []
     with open(subregions_file) as f:
-        return [line.strip() for line in f if line.strip()]
+        subregions = [line.strip() for line in f if line.strip()]
+        for exl in exclude:
+            subregions = [sr for sr in subregions if exl not in sr.lower()]
+    return subregions
 
 
 rule intersect_subregion_hazard:
@@ -114,40 +118,40 @@ rule all_intersections:
     """
     input:
         expand(
-            "../results/flags/{asset_geom}/{hazard}/.processed",
+            # "../results/flags/{asset_geom}/{hazard}/.processed",
+            "../results/risk/{asset_geom}/{hazard}/{subregion}/profile.geoparquet",
             asset_geom=[
-                "tza_railway_edges",
+                # "tza_railway_edges",
                 # "tza_airports_polygons",
                 # "tza_roads_bridges_and_culverts_nodes",
-                # "tza_roads_edges",
+                "tza_roads_edges",
                 # "tza_iww_ports_polygons", "tza_maritime_ports_polygons"
             ],
             hazard=[
-                "pluvial",
+                # "pluvial",
                 # "fluvial",
-                "coastal",
+                # "coastal",
                 # "landslide",
                 # "cyclone",
-                # "hd35",
+                "hd35",
                 # "tasmax",
-                ]
-
+                ],
+            subregion=get_subregions()
         )
-
 
 # these are temporary workarounds for the Tanzania 2025 project
 rule calculate_annual_metrics_cleaned:
     """
-    snakemake --cores 4 ../results/risk/tza_railway_edges/pluvial/kilimanjaro/annual.parquet
-    snakemake --cores 4 ../results/risk/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro/annual.parquet
-    snakemake --cores 4 ../results/risk/tza_airports_polygons/pluvial/kilimanjaro/annual.parquet
+    snakemake --cores 4 ../results/risk_final/tza_railway_edges/pluvial/kilimanjaro/annual.parquet
+    snakemake --cores 4 ../results/risk_final/tza_roads_bridges_and_culverts_nodes/pluvial/kilimanjaro/annual.parquet
+    snakemake --cores 4 ../results/risk_final/tza_airports_polygons/pluvial/kilimanjaro/annual.parquet
     """
     input:
-        vector="../results/risk_cleaned/{asset}_{geom}/{hazard}/{subregion}/profile.geoparquet"
+        vector="../results/risk_final/{asset}_{geom}/{hazard}/{subregion}/profile.geoparquet"
     output:
-        parquet="../results/risk_cleaned/{asset}_{geom}/{hazard}/{subregion}/annual.parquet"
+        parquet="../results/risk_final/{asset}_{geom}/{hazard}/{subregion}/annual.parquet"
     log:
-        file="../logs/risk_cleaned/expectations_{geom}_{asset}_{hazard}_{subregion}.log"
+        file="../logs/risk_final/expectations_{geom}_{asset}_{hazard}_{subregion}.log"
     script:
         "../scripts/expectations.py"
 
@@ -158,21 +162,21 @@ rule calculate_all_cleaned_metrics:
     """
     input:
         expand(
-            "../results/risk_cleaned/{asset_geom}/{hazard}/{subregion}/annual.parquet",
+            "../results/risk_final/{asset_geom}/{hazard}/{subregion}/annual.parquet",
             asset_geom=[
                 "tza_railway_edges",
-                "tza_roads_bridges_and_culverts_nodes",
-                "tza_roads_edges",
-                "tza_hubs_polygons"
+                # "tza_roads_bridges_and_culverts_nodes",
+                # "tza_roads_edges",
+                # "tza_hubs_polygons"
             ],
             hazard=[
-                "pluvial",
-                "fluvial",
-                "coastal",
-                "landslide",
-                "cyclone",
+                # "pluvial",
+                # "fluvial",
+                # "coastal",
+                # "landslide",
+                # "cyclone",
                 # "hd35",
-                # "tasmax",
+                "tasmax"
                 ],
             subregion=get_subregions()
         )

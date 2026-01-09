@@ -13,21 +13,21 @@ from utils import data as du
 from utils import plot as pu
 
 HAZARDS   = [
-    # "cyclone",
+    "cyclone",
     # "landslide",
     # "pluvial",
     # "fluvial",
     # "coastal",
-    "hd35",
+    # "hd35",
     # "tasmax"
 ]
 ASSET_GEOMS = [
-    # "tza_railway_edges",
+    "tza_railway_edges",
     # "tza_roads_edges",
     # "tza_roads_bridges_and_culverts_nodes",
     # "tza_hubs_polygons",
     # "tza_railway_edges",
-    "tza_roads_edges",
+    # "tza_roads_edges",
 ]
 METRIC = "cost"
 METRIC_UNIT = "m"
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         for ASSET_GEOM in ASSET_GEOMS:
 
             print(f"Plotting hazard: {HAZARD}, asset: {ASSET_GEOM}, subregion: {SUBREGION if SUBREGION else 'national'}")
-            base_dir = os.path.join(WD, "risk_cleaned", ASSET_GEOM, HAZARD)
+            base_dir = os.path.join(WD, "risk_finalised", ASSET_GEOM, HAZARD)
             df = du.load_asset_data(base_dir, metric_type="profile.geoparquet")
 
             # ! temp patch to investigate

@@ -2,25 +2,8 @@
 import geopandas as gpd
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
-from scipy import integrate
 import logging
-
 from utils import naming
-
-
-def ead(df:pd.DataFrame, method="trapezoid") -> float:
-        """Calculate expected annual damage from damage values and return periods."""
-        if df.empty | (df["value"] == 0).all():
-            return 0.0
-        damages = df["value"].astype(float).values
-        rps = df["rp"].astype(float).values
-        probs = 1 / rps
-        idx = np.argsort(probs)
-        probs = np.insert(probs[idx], 0, 0.0)
-        damages = np.insert(damages[idx], 0, 0.0)
-        ead_value = getattr(integrate, method)(damages, x=probs)
-        return ead_value
 
 
 def vectorised_ead(risk_df, group_cols):
@@ -63,82 +46,67 @@ def vectorised_ead(risk_df, group_cols):
     return result
 
 
-def check_for_negatives(df:pd.DataFrame):
-     if (df["expected"] < 0).any():
+def check_for_negatives(df: pd.DataFrame):
+    if (df["expected"] < 0).any():
         negative_rows = df[df["expected"] < 0].copy()
-        logging.warning(f"\nNegative expected risk values found:{len(negative_rows)}\n")
-        # print debugging information
+        logging.warning(f"\nNegative expected risk values found: {len(negative_rows)}\n")
         for idx, row in negative_rows.head(5).iterrows():
             logging.debug(f"Row {idx} details:\n{row}")
 
 
 def main(input, output, params=None):
     df = pd.read_parquet(input.vector)
-
     if df.index.name != 'id':
         df = df.set_index('id')
-
+    
     if df.empty:
         df.to_parquet(output.parquet, index=True)
         logging.info("Input asset file is empty, saved empty output.")
         return
-
-    hazard_cols = [col for col in df.columns if col.startswith("hazard-")]
-    defended_cols = [col for col in df.columns if col.startswith("defended-")]
-    damage_cols = [col for col in df.columns if col.startswith("damage-")]
-    cost_cols = [col for col in df.columns if col.startswith("cost-")]
-    risk_cols = hazard_cols + defended_cols + damage_cols + cost_cols
+    
+    isolated_cols = [col for col in df.columns if col.startswith("isolated-")]
+    detoured_cols = [col for col in df.columns if col.startswith("detoured-")]
+    wdetoured_cols = [col for col in df.columns if col.startswith("wdetoured-")]
+    risk_cols = isolated_cols + detoured_cols + wdetoured_cols
     base_cols = [col for col in df.columns if col not in risk_cols]
-
-    # tranpose and parse column names
+    
+    # Transpose and parse column names
     risk_df = df[risk_cols].copy().T.reset_index()
     risk_tuples = risk_df["index"].apply(naming.extract_hazard_info)
     risk_info = pd.DataFrame(
         risk_tuples.tolist(),
         columns=["metric", "hazard", "epoch", "scenario", "rp", "range"]
     )
-    # risk_df = risk_df.reset_index(drop=True).join(risk_info)
     risk_df = risk_df.drop(columns="index").join(risk_info)
     
-    # melt to long format
+    # Melt to long format
     id_cols = ["metric", "hazard", "epoch", "scenario", "rp", "range"]
     risk_df = risk_df.melt(id_vars=id_cols, var_name="id", value_name="value")
     risk_df["value"] = risk_df["value"].fillna(0.0)
-
-    # vectorised ead calculation
+    
+    # vectorised EAD calculation
     group_cols = ["metric", "hazard", "epoch", "scenario", "range"]
     ead_results = vectorised_ead(risk_df, group_cols)
-    # risk_grouped = risk_gdf.groupby(
-    #     ["id", "metric", "hazard", "epoch", "scenario", "range"],
-    #     dropna=False
-    # )[["rp", "value"]]
-    # tqdm.pandas(desc="Calculating EAD")
-    # ead_results = risk_grouped.progress_apply(ead)
-    # ead_results = ead_results.reset_index()
-    # ead_results = ead_results.rename(columns={0: "expected"})
-
+    
+    # Merge back with base columns
     final_df = df[base_cols].reset_index().merge(
         ead_results,
         on="id",
         how="outer"
     ).set_index("id")
-
+    
     final_df.to_parquet(output.parquet, index=True)
-
     check_for_negatives(final_df)
     logging.info(f"Saved expected risk results to {output.parquet}")
 
 
 if __name__ == "__main__":
-
     logging.basicConfig(
         filename=snakemake.log.file,
         format="%(asctime)s %(process)d %(filename)s %(message)s",
         level=logging.INFO
     )
-
     input = snakemake.input
     output = snakemake.output
     params = snakemake.params
-
-    result = main(input, output, params)
+    main(input, output, params)

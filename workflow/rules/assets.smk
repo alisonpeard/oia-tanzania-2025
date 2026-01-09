@@ -77,10 +77,10 @@ rule process_all_assets:
         expand("../results/assets/{asset_geom}",
             asset_geom=[
                 "tza_roads_edges",
-                "tza_railway_edges",
-                "tza_roads_bridges_and_culverts_nodes",
-                "tza_airports_polygons",
-                "tza_iww_ports_polygons",
-                "tza_maritime_ports_polygons"
+                # "tza_railway_edges",
+                # "tza_roads_bridges_and_culverts_nodes",
+                # "tza_airports_polygons",
+                # "tza_iww_ports_polygons",
+                # "tza_maritime_ports_polygons"
             ]
         )

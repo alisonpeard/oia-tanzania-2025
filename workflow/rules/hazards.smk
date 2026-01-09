@@ -11,7 +11,7 @@ def get_all_input_hazards(wildcards):
             if file.endswith(".tif"):
                 hazards.append(os.path.join(root, file))
     if len(hazards) == 0:
-        raise ValueError("No input hazard rasters found in ../results/hazards/input")
+        raise ValueError(f"No input hazard rasters found in {hazards_dir}")
     return hazards
 
     

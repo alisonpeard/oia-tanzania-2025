@@ -18,6 +18,7 @@ import pandas as pd
 import geopandas as gpd
 
 
+WD = "/Users/alison/Local/github/oia-tanzania-2025/results"
 adm1_path = "/Volumes/Expansion/02_oia/oia-tanzania-2025/input/admin/tza_admin_1.gpkg"
 
 
@@ -129,32 +130,43 @@ def admin1_damages(gdf, adm, cost_col, damage_col, asset="road",
 
 ASSET_GEOM = "tza_roads_bridges_and_culverts_nodes"
 HAZARD = "fluvial"
-WD = "/Users/alison/Local/github/oia-tanzania-2025/results"
+
 
 assets = [
-    "tza_roads_edges",
-    "tza_roads_bridges_and_culverts_nodes",
+    # "tza_roads_edges",
+    # "tza_roads_bridges_and_culverts_nodes",
     "tza_railway_edges",
-    "tza_hubs_polygons"
+    # "tza_hubs_polygons"
 ]
 
 hazards = [
-    "fluvial",
+    # "fluvial",
     # "pluvial",
     # "coastal",
     # "cyclone",
-    # "landslide"
+    # "landslide",
+    # "hd35",
+    "tasmax"
 ]
+
+def format_subregion_name(subregion:str) -> str:
+    subregion = subregion.lower()
+    subregion = subregion.replace(" ", "_")
+    subregion = subregion.replace("/", "-")
+    return subregion
 
 for hazard in hazards:
     for asset_geom in assets:
         if hazard == "cyclone":
             damage_col = f"damage-{hazard}_2050_ssp245_rp00250_max"
             cost_col = f"cost-{hazard}_2050_ssp245_rp00250_max"
+        elif hazard in ["hd35", "tasmax"]:
+            damage_col = f"damage-{hazard}_2050_rcp45_rp00100_mean"
+            cost_col = f"cost-{hazard}_2050_rcp45_rp00100_mean"
         else:
             damage_col = f"damage-{hazard}_2050_ssp245_rp00100_max"
             cost_col = f"cost-{hazard}_2050_ssp245_rp00100_max"
-        base_dir = os.path.join(WD, "risk_cleaned", asset_geom, hazard)
+        base_dir = os.path.join(WD, "risk_final", asset_geom, hazard)
 
         asset = du.load_asset_data(
             asset_dir=base_dir,
@@ -172,7 +184,7 @@ for hazard in hazards:
             units = 'sq km'
             
         adm1 = gpd.read_file(adm1_path)
-        adm1["subregion"] = adm1["shapeName"].str.lower().copy()
+        adm1["subregion"] = adm1["shapeName"].apply(format_subregion_name)
         bbox = [29, 41, -12, -1]
         asset_label = " ".join(asset_geom.split("_")[1:-1])
 

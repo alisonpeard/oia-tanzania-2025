@@ -27,8 +27,8 @@ import traffic
 
 # parameters
 outdir = "/Users/alison/Downloads/flows/health_traffic"
-road_path = "/Users/alison/Local/github/oia-tanzania-2025/results/assets/tza_roads_edges/dar_es_salaam.geoparquet"
-# road_path = "/Volumes/Expansion/02_oia/oia-tanzania-2025/input/assets/tza_roads_edges.parquet"
+# road_path = "/Users/alison/Local/github/oia-tanzania-2025/results/assets/tza_roads_edges/dar_es_salaam.geoparquet"
+road_path = "/Volumes/Expansion/02_oia/oia-tanzania-2025/input/assets/tza_roads_edges.parquet"
 pops_path = "/Users/alison/Downloads/flows/health_weights/tza_roads_weights.gpkg"
 figdir = "/Users/alison/Local/github/oia-tanzania-2025/analysis/figures/health_traffic"
 pops_col = "population"
@@ -45,17 +45,47 @@ def timer(name="Operation"):
 
 
 def travel_time(df:pd.DataFrame) -> pd.Series:
-    speed_map = {
-        "Trunk Road": 50.0,
-        "Regional Road": 50.0,
-        "Collector Road": 50.0,
-        "District Road": 40.0,
-        "Feeder Road": 30.0,
-        "Community Road": 20.0
+    # Base speeds by surface type
+    surface_speed = {
+        "asphalt concrete": 80.0,
+        "concrete": 80.0,
+        "dbst": 70.0,           # double bituminous surface treatment
+        "sbst": 60.0,           # single bituminous surface treatment
+        "stone pavement": 40.0,
+        "gravel": 35.0,
+        "earthern": 25.0,
+        "non engineered": 15.0,
+    }
+
+    # Condition multiplier
+    condition_mult = {
+        "Good": 1.0,
+        "Fair": 0.85,
+        "Poor": 0.7,
+        "Bad": 0.5,
+        # treat the anomalous values as neutral
+        "road_paved": 1.0,
+        "road_unpaved": 0.8,
+        "road_unpaved/road_paved": 0.9,
+    }
+
+    # Class ceiling (max speed regardless of surface)
+    class_ceiling = {
+        "trunk road": 100.0,
+        "regional road": 80.0,
+        "district road": 50.0,
+        "collector road": 50.0,
+        "urban road": 50.0,
+        "feeder road": 40.0,
+        "community road": 30.0,
     }
 
     # Fill the missing values
-    speed_impute = df['road_class'].map(speed_map)
+    surface_kmph = df['road_surface_type'].str.lower().map(surface_speed)
+    condition_factor = df['road_surface_condition'].map(condition_mult).fillna(0.9)
+    class_limit = df['road_class'].str.lower().map(class_ceiling)
+    speed_impute = np.minimum(condition_factor * surface_kmph, class_limit)
+    # speed_impute = np.minimum(50.0, class_limit)
     speed_kmph = df["tag_maxspeed"].fillna(speed_impute)
     print(f"Using speed limits: {speed_kmph.unique()} kmph")
     time_hours = df['length_km'] / speed_kmph
@@ -75,7 +105,7 @@ def millions(x, pos):
     """The two args are the value and tick position"""
     return f"{x * 1e-6:.1f} M"
 
-
+pd.options.display.max_rows = None
 if __name__ == "__main__":
     os.makedirs(figdir, exist_ok=True)
     os.makedirs(outdir, exist_ok=True)
@@ -84,8 +114,11 @@ if __name__ == "__main__":
     # create road graph
     roads = gpd.read_parquet(road_path)
     roads["length_km"] = roads["length_m"] * 1e-3
+
+    # %%
+
     roads["travel_time"] = travel_time(roads)
-    
+    # %%
     # tidy up topology
     roads["self_loop"] = roads["from_id"] == roads["to_id"]
     roads = roads[~roads["self_loop"]].copy()
@@ -151,9 +184,9 @@ if __name__ == "__main__":
 
     # total flux on network
     total_flux = od_matrix['flux'].sum()
-    print(f"Total school-trips within {max_cost} mins: {total_flux:,.0f}")
-    print(f"Total school-going demand: {total_demand:,.0f}")
-    print(f"{total_demand - total_flux:,.0f} people unable to reach school within {max_cost} mins")
+    print(f"Total health-trips within {max_cost} mins: {total_flux:,.0f}")
+    print(f"Total health-going demand: {total_demand:,.0f}")
+    print(f"{total_demand - total_flux:,.0f} people unable to reach health services within {max_cost} mins")
 
     # re-running Dijkstra for every single edge
     dependency_sort = np.argsort(edge_idxs)

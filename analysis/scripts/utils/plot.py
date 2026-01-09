@@ -9,7 +9,9 @@ hazard_labels = {
     "pluvial": "Pluvial flood",
     "coastal": "Coastal flood",
     "cyclone": "Cyclone wind",
-    "landslide": "Landslide"
+    "landslide": "Landslide",
+    "hd35": "Days above 35°C",
+    "tasmax": "Maximum temperature",
 }
 
 def clean_sci_formatter(x, pos):
@@ -46,7 +48,7 @@ def create_white_to_color_cmap(hex_color, white="beige", white_fraction=0.7, nam
 def add_geofeatures(ax):
     ax.add_feature(cfeature.BORDERS, color='k', linestyle=':', alpha=0.5, linewidth=0.5)
     ax.add_feature(cfeature.LAND, color="#D9D7D3")
-    ax.add_feature(cfeature.LAKES, color='#7ABAEC', zorder=10)
+    # ax.add_feature(cfeature.LAKES, color='#7ABAEC', edgecolor='navy', zorder=10)
     ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
     ax.add_feature(cfeature.OCEAN, color='#7ABAEC', zorder=0)
     gl = ax.gridlines(draw_labels=False, linewidth=.1, color='#7D6E63', alpha=0.5, x_inline=False, y_inline=False)

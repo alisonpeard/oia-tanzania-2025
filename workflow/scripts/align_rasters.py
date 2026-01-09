@@ -39,42 +39,13 @@ def rasters_are_aligned(raster_path, target_extent, target_res, tolerance=1e-6) 
 
 
 def main(input, output, params):
+    print(f"Making output directory: {output.outdir}")
     Path(output.outdir).mkdir(parents=True, exist_ok=True)
     
     min_pixel_size = float('inf')
     xmin, ymin = float('inf'), float('inf')
     xmax, ymax = float('-inf'), float('-inf')
-    
-    # logging.info("Analysing input rasters...")
-    # logging.info(f"{input.rasters=}")
-    # for raster_path in (pbar := tqdm.tqdm(input.rasters)):
-    #     pbar.set_postfix({'Checking raster': os.path.basename(raster_path)})
-        # ds = gdal.Open(raster_path)
-        # gt = ds.GetGeoTransform()
-        
-        # # Get pixel size (take absolute value and minimum of x/y)
-        # pixel_x = abs(gt[1])
-        # pixel_y = abs(gt[5])
-        # pixel_size = min(pixel_x, pixel_y)
-        
-        # if pixel_size < min_pixel_size:
-        #     min_pixel_size = pixel_size
-        #     reference_raster = raster_path
-        
-        # # Get extent
-        # cols = ds.RasterXSize
-        # rows = ds.RasterYSize
-        
-        # ulx, uly = gt[0], gt[3]
-        # lrx = ulx + cols * gt[1]
-        # lry = uly + rows * gt[5]
-        
-        # xmin = min(xmin, ulx, lrx)
-        # xmax = max(xmax, ulx, lrx)
-        # ymin = min(ymin, uly, lry)
-        # ymax = max(ymax, uly, lry)
-        
-    #     ds = None
+
     reference_raster = input.reference_raster
     ds = gdal.Open(reference_raster)
     gt = ds.GetGeoTransform()

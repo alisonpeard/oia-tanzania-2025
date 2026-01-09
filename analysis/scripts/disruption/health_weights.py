@@ -73,8 +73,6 @@ if __name__ == "__main__":
     roads_service = roads_service[
          ["id", "health", "population_demand", "population_served", "population", "health_ids"]
     ]
-    roads_service[roads_service["health"] == 1]
-    roads_service["zeta"] = zeta
 
     def format_list(input:list):
         if isinstance(input, list):
@@ -96,16 +94,4 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     roads_service.to_file(out_path, driver="GPKG")
 
-    # %% Calculate the percentage of population served
-    print("Before removing local effects:")
-    print(f"  Total population demand: {total_pop:,.0f}")
-    print(f"  Total health capacities: {total_health_pop:,.0f}")
-    print(f"  Corrected health-going demand: {total_pop * zeta:,.0f}")
-
-    total_healths = roads_service[roads_service["health"] == 1]["population"].sum()
-    total_demand = roads_service[roads_service["health"] == 0]["population"].sum()
-
-    print("\nAfter removing local effects:")
-    print(f"  Total population demand: {total_demand:,.0f}")
-    print(f"  Total health capacities: {total_healths:,.0f}")
     # %%

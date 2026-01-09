@@ -34,15 +34,15 @@ HAZARDS   = [
     # "pluvial",
     # "coastal",
     # "cyclone",
-    "landslide"
-    # "hd35", # unsure if any
-    # "tasmax" # unsure if any
+    # "landslide"
+    # "hd35",
+    "tasmax"
 ]
 ASSET_GEOMS = [
-    "tza_roads_edges",
+    # "tza_roads_edges",
     "tza_railway_edges",
-    "tza_roads_bridges_and_culverts_nodes",
-    "tza_hubs_polygons",
+    # "tza_roads_bridges_and_culverts_nodes",
+    # "tza_hubs_polygons",
 ]
 METRIC = "cost"
 RANGE = "mean"
@@ -56,8 +56,8 @@ FRAMEWORKS = {
     "coastal": {"base": "historical", "lower": "ssp126", "centre": "ssp245", "upper": "ssp585"},
     "cyclone": {"base": "historical", "lower": "ssp126", "centre": "ssp245", "upper": "ssp585"},
     "landslide": {"base": "historical", "lower": "ssp126", "centre": "ssp245", "upper": "ssp585"},
-    "hd35": {"base": "historical", "lower": "ssp126", "centre": "ssp245", "upper": "ssp585"},
-    "tasmax": {"base": "historical", "lower": "ssp126", "centre": "ssp245", "upper": "ssp585"},
+    "hd35": {"base": "historical", "lower": "rcp26", "centre": "rcp45", "upper": "rcp85"},
+    "tasmax": {"base": "historical", "lower": "rcp26", "centre": "rcp45", "upper": "rcp85"},
 }
 
 
@@ -73,7 +73,8 @@ if __name__ == "__main__":
             ASSET_TYPE = "asset_type"
 
             print(f"Plotting hazard: {HAZARD}, asset: {ASSET_GEOM}, subregion: {SUBREGION if SUBREGION else 'national'}")
-            base_dir = os.path.join(WD, "risk_cleaned", ASSET_GEOM, HAZARD)
+            #! temp patch for risk location
+            base_dir = os.path.join(WD, "risk_final", ASSET_GEOM, HAZARD)
             df = du.load_asset_data(base_dir, metric_type="profile.geoparquet", subregion=SUBREGION, verbose=True)
 
             if METRIC == "damage":
@@ -105,16 +106,6 @@ if __name__ == "__main__":
                 continue
 
             totals = risk_gdf.copy()
-
-            # # explicitly add simplifications
-            # if HAZARD == "cyclone":
-            #     scen_hist = res["scenario"] == "historical"
-            #     epoch_base = res["epoch"] == "2010"
-            #     res = res[~(epoch_base & ~scen_hist)].copy()
-            #     res["epoch"] = res["epoch"].replace({
-            #         "2010": "baseline",
-            #         "2090": "2080"
-            #     })
 
             # After the new code produces totals
             print(f"totals shape: {totals.shape}")
@@ -272,7 +263,7 @@ if __name__ == "__main__":
                 handles=epoch_patches,
                 loc='lower left',
                 frameon=False,
-                title="Δbaseline",
+                title=f"Δbaseline ({EPOCHS[-1]})",
                 fontsize=8,
                 title_fontsize=9,
                 labelspacing=0.3

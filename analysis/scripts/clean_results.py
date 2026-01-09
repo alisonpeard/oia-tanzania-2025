@@ -9,7 +9,6 @@ Cleaning required:
 3. Multipled airport costs by 0.1
 4. Replace asset types with output naming (road class, structure type, etc.)
 5. Change "_stat_stat" -> "_stat" in cost columns
-6. Save as one big parquet file per asset type and hazard
 """
 # %%
 indir = "/Users/alison/Local/github/oia-tanzania-2025/results/risk"

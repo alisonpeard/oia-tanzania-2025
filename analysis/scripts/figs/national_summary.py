@@ -9,6 +9,7 @@ import os
 import sys
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
 sys.path.append("..") 
 
 import utils.data as du
@@ -21,18 +22,21 @@ pd.options.display.max_rows = None
 metric = "cost"
 results_dir = paths.results_dir
 
+
 assets = [
-    "tza_roads_edges",
-    "tza_roads_bridges_and_culverts_nodes",
+    # "tza_roads_edges",
+    # "tza_roads_bridges_and_culverts_nodes",
     "tza_railway_edges",
-    "tza_hubs_polygons"
+    # "tza_hubs_polygons"
     ]
 hazards = [
-    "fluvial",
-    "pluvial",
-    "coastal",
-    "landslide",
-    "cyclone"
+    # "fluvial",
+    # "pluvial",
+    # "coastal",
+    # "landslide",
+    "cyclone",
+    # "hd35",
+    # "tasmax"
 ]
 
 asset_labels = {
@@ -47,7 +51,10 @@ hazard_labels = {
     "pluvial": "Pluvial flooding",
     "coastal": "Coastal flooding",
     "landslide": "Landslides",
-    "cyclone": "Cyclones"
+    "cyclone": "Cyclones",
+    "hd35": "Extreme heat",
+    "tasmax": "Extreme heat",
+    "heat": "Extreme heat" # new column to groupby heat
 }
 
 field_labels = {
@@ -69,7 +76,10 @@ scenario_labels = {
 results_list = []
 for asset_geom in assets:
     for hazard in hazards:
-        wd = os.path.join(results_dir, "risk_cleaned", asset_geom, hazard)
+        wd = os.path.join(results_dir, "risk_finalised", asset_geom, hazard)
+        if not os.path.exists(wd):
+            print(f"No data for: {asset_geom} - {hazard} - skipping")
+            continue
         asset = du.load_asset_data(
             wd, metric_type="annual.parquet"
         )
@@ -90,11 +100,20 @@ for asset_geom in assets:
             res["epoch"] = res["epoch"].replace({"2020": "baseline"})
         elif hazard == "landslide":
             res["epoch"] = res["epoch"].replace({"2015": "baseline"})
+        elif hazard in ["hd35", "tasmax"]:
+            res["epoch"] = res["epoch"].replace({"2010": "baseline"})
+            res["scenario"] = res["scenario"].replace({
+                "rcp26": "ssp126",
+                "rcp45": "ssp245",
+                "rcp85": "ssp585"
+            })
+            res["hazard"] = "heat"
+
         res["hazard"] = hazard
         res["asset_geom"] = asset_geom
         results_list.append(res)
-# %%
 
+# %% concatenate all the results
 results = pd.concat(results_list, axis=0, ignore_index=True)
 
 epoch_order = ["baseline", "2030", "2050", "2080"]
@@ -108,9 +127,6 @@ results["hazard"] = results["hazard"].map(hazard_labels)
 
 # %%
 # first look at variation between scenarios
-import seaborn as sns
-import matplotlib.pyplot as plt
-
 hue = "scenario"
 
 results_pivot = results.groupby(["epoch", hue, "range"])["expected"].sum().unstack("range").reset_index()
@@ -129,7 +145,6 @@ sns.barplot(
     edgecolor="k",
     palette="Spectral_r",
     ax=ax
-
 )
 
 n_epochs = len(epoch_order)
@@ -155,7 +170,7 @@ for i, epoch in enumerate(epoch_order):
 
 ax.legend(title=field_labels[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
 ax.set_xlabel("Epoch", fontweight="bold")
-ax.set_ylabel("Annual expected losses\n(million USD)", fontweight="bold")  
+ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")  
 plt.tight_layout()
 
 # %%
@@ -201,7 +216,8 @@ for hue in ["asset_geom", "hazard"]:
     ax.legend(title=field_labels[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
     
     ax.set_xlabel("Epoch", fontweight="bold")
-    ax.set_ylabel("Annual expected losses\n(million USD)", fontweight="bold")
+    ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")
     plt.tight_layout()
 # %%
 # 
+# %%
