@@ -11,6 +11,8 @@ src/snkit
 build
 rw.py
 .snakemake/
+config.json
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

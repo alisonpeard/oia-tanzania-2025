@@ -1,34 +1,26 @@
-name: oia-tanzania-2025
+name: ttra
 channels:
-  - conda-forge 
   - nodefaults
+  - conda-forge
 dependencies:
-  - python=3.10
+  - python=3.12
+  - geopandas
+  - ipykernel
+  - jupyter
+  - networkx
+  - nbstripout
+  - numba
+  - numpy
+  - pandas
+  - python-igraph
+  - rasterio
+  - scipy
+  - shapely
+  - snkit
+  - tqdm
+  - xarray
   - pip
-  - contextily          # basemaps for plots
-  - dask<2024.3.0       # larger-than-memory computing
-  - gdal>=3.3           # command-line tools for spatial data
-  - geopandas==0.14.4   # geospatial dataframes
-  - ipykernel           # notebook support
-  - jupyter             # notebook support
-  - matplotlib==3.7.1   # basic plotting
-  - netCDF4             # NetCDF file format
-  - numpy               # data arrays
-  - pandas==2.0.3       # tabular data
-  - pyarrow>=13.0.0     # parquet file format, Arrow data exchange
-  - pyproj>=3.3.1       # geographic projections
-  - rasterio            # raster file formats
-  - rasterstats         # raster statistics
-  - rioxarray           # xarray datasets from raster files
-  - scipy               # scientific computing library
-  - bioconda::snakemake==7.18.2   # workflow management
-  - tabulate==0.8.10    # snakemake dependency with bug in 9.0.0, pin previous
-  - tqdm==4.62.3        # progress bars
-  - xarray==2023.10.1   # named n-dimensional arrays
-  - zarr                # zarr ndarray/raster store
-  - exactextract==0.2.0
-  - h5py
-  - cartopy
   - pip:
-    - nismod-snail==0.5.2 # vector-raster intersections
-    - snkit==1.8.1        # spatial network cleaning
+      - -e .
+      - -e ../oi-risk
+      - nismod-snail

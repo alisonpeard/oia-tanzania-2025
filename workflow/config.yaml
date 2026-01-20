@@ -1,7 +1,0 @@
-inputs: "/Volumes/Expansion/02_oia/oia-tanzania-2025/input"
-outputs: "/Volumes/Expansion/02_oia/oia-tanzania-2025/results" # don't use
-local_crs: 32735
-country: "tanzania"
-admin_level: 1
-bbox: [29, 41, -12, -1]
-reprocess_hazards: false
