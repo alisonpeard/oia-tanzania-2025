@@ -46,7 +46,6 @@ rule all_chaz_historical:
     input:
         tiffs = expand(
             "../results/hazards/input/cyclone_{EPOCH}_{SCENARIO}_rp{RP}.tif",
-            SUBCATEGORY=["chaz"],
             EPOCH=["2010"],
             SCENARIO=["historical"],
             RP = ["00010", "00025", "00050", "00250", "01000"]

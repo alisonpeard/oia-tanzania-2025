@@ -20,6 +20,7 @@ dependencies:
   - tqdm
   - xarray
   - pip
+  - gdal
   - pip:
       - -e .
       - -e ../oi-risk

@@ -10,7 +10,7 @@ Other pre-processing:
 import os
 from itertools import product
 from pathlib import Path
-import subprocess
+import shutil
 from tqdm import tqdm
 from oi_risk import config
 
@@ -19,12 +19,12 @@ SIMULATION_TYPE = ["historical", "future"][1]
 
 scenarios = {
     "historical": {
-        "subcategory": ["chaz"],
+        "subcategory": ["cyclone"],
         "rp": ["00010", "00025", "00050", "00250", "01000"],
         "epoch": ["2010"],
         "scenario": ["historical"]
     }, "future": {
-        "subcategory": ["chaz"],
+        "subcategory": ["cyclone"],
         "rp": ["00010", "00025", "00050", "00250", "01000"],
         "epoch": ["2030", "2050", "2080"],
         "scenario": ["ssp126", "ssp245", "ssp585"]
@@ -50,7 +50,7 @@ def format_input_file(indir, subcategory, rp, epoch, scenario):
 
 def main(config, simulation_type="historical", redo=False):
     indir = Path(config['paths']['incoming_data']) / "hazards" / "chaz"
-    outdir = Path(config['paths']['processed_data']) / "hazards" / "cleaned"
+    outdir = Path(config['paths']['snakemake_data']) / "hazards" / "raw"
     os.makedirs(outdir, exist_ok=True)
 
     scen_values = scenarios[simulation_type].values()
@@ -58,14 +58,15 @@ def main(config, simulation_type="historical", redo=False):
         subcategory, rp, epoch, scenario = value
         pbar.set_postfix(simulation_type=simulation_type, subcategory=subcategory, rp=rp, epoch=epoch, scenario=scenario)
         inpath = format_input_file(indir, subcategory, rp, epoch, scenario)
-        outpath = outdir / f"{subcategory}_{epoch}_{scenario}_{rp}.tif"
+        outpath = outdir / f"{subcategory}_{epoch}_{scenario}_rp{rp}.tif"
         print(f"{inpath} -> {outpath}")
 
         if outpath.exists() and not redo:
             print(f"  Skipping existing: {outpath}")
             continue
-        cmd = f"cp {inpath} {outpath}"
-        subprocess.run(cmd, shell=True, check=True)
+
+        print(f"\ncopying:\n  {inpath}\n   ->\n    {outpath}")
+        shutil.copy2(inpath, outpath)
 
 
 if __name__ == '__main__':

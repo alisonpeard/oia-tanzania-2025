@@ -1,12 +1,14 @@
-# %% 
-"""Process input rehab costs to a single row per asset_type for every hazard type."""
-import os
+"""
+Process input rehab costs to a single row per asset_type for every hazard type.
+"""
+#%% 
 import pandas as pd
 from glob import glob
-import yaml
+from pathlib import Path
+from oi_risk import config
 
 
-hazard_cost_dict = {
+HAZARDS_CATEGORIES = {
     "fluvial": "floods_storms_landslides",
     "pluvial": "floods_storms_landslides",
     "coastal": "floods_storms_landslides",
@@ -34,32 +36,45 @@ def standardise_cost_columns(df, currency="usd"):
 
 
 if __name__ == "__main__":
-
-    cfg_path = os.path.join("..", "..", "workflow", "config.yaml")
-    with open(cfg_path, "r") as f:
-        cfg = yaml.safe_load(f)
-
-    indir = cfg["inputs"]
-    indir = os.path.join(indir, "costs")
+    config = config.load_config()
+    indir = Path(config['paths']['processed_data']) / "costs"
+    outdir = Path(config["paths"]["snakemake_data"]) / "config" / "rehab_costs"
+    configdir = Path(config['paths']['snakemake_data']) / "config"
+    outdir.mkdir(parents=True, exist_ok=True)
     print(f"Processing rehab costs from {indir}")
 
-    for hazard, hazdir in hazard_cost_dict.items():
+    asset_types = pd.read_csv(configdir / "asset_types.csv")["asset_type"].tolist()
+
+    for hazard, hazdir in HAZARDS_CATEGORIES.items():
         print(f"Processing hazard: {hazard}")
         print(f"  from directory: {hazdir}")
-        cost_files = glob(os.path.join(indir, hazdir, "*.csv"))                
+        
+        cost_files = glob(str(indir / hazdir / "*.csv"))       
+
         cost_dfs = []
         for file in cost_files:
-
             df = pd.read_csv(file)
-
             df = df.set_index("asset_type")
             df = standardise_cost_columns(df)
             cost_dfs.append(df)
 
-
         cost_df = pd.concat(cost_dfs)
         cost_df = cost_df[~cost_df.index.duplicated(keep="first")]
-        outpath = os.path.join("..", "..", "config", "rehab_costs", f"{hazard}.csv")
+        cost_df = cost_df.reindex(asset_types)
+        cost_df.index.name = "asset_type"
+        cost_df = cost_df.sort_index()
+
+        if hazard == "heat":
+            cost_df["min_cost_usd"] = float("nan")
+            cost_df["max_cost_usd"] = float("nan")
+            cost_df["mean_cost_usd"] = float("nan")
+            for heat_hazard in ["hd35", "tasmax"]:
+                outpath = outdir / f"{heat_hazard}.csv"
+                cost_df.to_csv(outpath)
+                print(f"Wrote {outpath} with {len(cost_df)} rows.")
+            continue
+
+        outpath = outdir / f"{hazard}.csv"
         cost_df.to_csv(outpath)
         print(f"Wrote {outpath} with {len(cost_df)} rows.")
     # %%
