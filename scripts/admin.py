@@ -6,7 +6,7 @@ Needs to have "subregion" field and be all lowe case with underscores.
 import os
 import geopandas as gpd
 from pathlib import Path
-from tqdm import tqdm
+
 from oi_risk import config
 
 

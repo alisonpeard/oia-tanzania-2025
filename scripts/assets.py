@@ -7,6 +7,7 @@ import pandas as pd
 import geopandas as gpd
 from pathlib import Path
 from tqdm import tqdm
+
 from oi_risk import config
 
 
@@ -58,5 +59,4 @@ if __name__ == '__main__':
     CONFIG = config.load_config()
     main(CONFIG, REDO)
 # %%
-pd.read_csv(Path(CONFIG['paths']['snakemake_data']) / "config" / "asset_types.csv")
-# %%
+

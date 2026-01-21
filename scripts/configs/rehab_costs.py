@@ -77,4 +77,4 @@ if __name__ == "__main__":
         outpath = outdir / f"{hazard}.csv"
         cost_df.to_csv(outpath)
         print(f"Wrote {outpath} with {len(cost_df)} rows.")
-    # %%
+# %%

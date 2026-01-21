@@ -5,14 +5,13 @@ Change REDO to True to re-generate the table from the hazard files.
 """
 # %%
 import os
-import ast
 import pandas as pd
 from osgeo import gdal
 from glob import glob
 from pathlib import Path
 
-from oi_risk import config
 import ttra
+from oi_risk import config
 
 pd.set_option('display.max_rows', None)
 

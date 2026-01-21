@@ -7,6 +7,7 @@ from itertools import product
 from pathlib import Path
 import shutil
 from tqdm import tqdm
+
 from oi_risk import config
 
 REDO = False
