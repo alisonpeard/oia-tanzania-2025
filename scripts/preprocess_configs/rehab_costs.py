@@ -63,6 +63,7 @@ if __name__ == "__main__":
         cost_df = cost_df.reindex(asset_types)
         cost_df.index.name = "asset_type"
         cost_df = cost_df.sort_index()
+        cost_df = cost_df[~cost_df.index.duplicated(keep="first")]
 
         if hazard == "heat":
             cost_df["min_cost_usd"] = float("nan")
@@ -77,4 +78,5 @@ if __name__ == "__main__":
         outpath = outdir / f"{hazard}.csv"
         cost_df.to_csv(outpath)
         print(f"Wrote {outpath} with {len(cost_df)} rows.")
+
 # %%

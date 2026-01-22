@@ -21,6 +21,8 @@ dependencies:
   - xarray
   - pip
   - gdal
+  - seaborn
+  - cartopy
   - pip:
       - -e .
       - -e ../oi-risk
