@@ -23,9 +23,9 @@ from oi_risk import config
 
 
 config = config.load_config()
-inp_dir = config["paths"]["heat_results"]
+inp_dir = os.path.join(config["paths"]["heat_results"], "intersections")
 ref_dir = os.path.join(config["paths"]["snakemake_data"], "assets")
-out_dir = config["paths"]["heat_results"]
+out_dir = os.path.join(config["paths"]["heat_results"], "intersections")
 pd.options.display.max_columns = None
 
 
@@ -34,11 +34,11 @@ def format_ref_index(vector_ref):
     
     Won't be needed in future.
     """
-    aggfunc =  dict(road_class='first', asset_type='first')
+    # aggfunc =  dict(road_class='first', asset_type='first')
     def format_index(index):
         return '_'.join(index.split('_')[:-1])
     vector_ref['id'] = vector_ref['id'].apply(format_index)
-    vector_ref = vector_ref.dissolve(by='id', aggfunc=aggfunc)
+    vector_ref = vector_ref.dissolve(by='id', aggfunc='first')
     return vector_ref.reset_index()
 
 
@@ -170,14 +170,18 @@ def clean_duplicate_columns(df, cost_cols):
 
 if __name__ == "__main__":
 
-    asset = ["tza_roads_edges", "tza_railway_edges"][0]
+    asset = ["tza_roads_edges", "tza_railway_edges"][1]
     
     paths = glob(f"{inp_dir}/{asset}/*/splits.geoparquet")
 
     for splits_path in tqdm(paths):
 
         # process baseline along with the future results
-        base_path = splits_path.replace(asset, f"{asset}_base")
+        if asset == "tza_roads_edges":
+            base_path = splits_path.replace(asset, f"{asset}_base")
+            paths = [base_path, splits_path]
+        else:
+            paths = [splits_path]
 
         subregion = Path(splits_path).parent.name
         os.makedirs(os.path.join(out_dir, asset, subregion), exist_ok=True)
@@ -197,7 +201,7 @@ if __name__ == "__main__":
         vector_ref = format_ref_index(vector_ref) # NOTE: patch won't need later
 
         sub_dfs = []
-        for sub_path in [base_path, splits_path]:
+        for sub_path in paths:
 
             vector_splits = gpd.read_parquet(sub_path)
 
