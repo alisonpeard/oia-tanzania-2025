@@ -84,6 +84,29 @@ def filter_output_stats(asset:gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return asset
 
 
+def verify_ranges(asset:gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Check no min > mean or mean > max"""
+    groupby = [col for col in asset.columns if col != "expected"]
+    grouped = asset.groupby(groupby).agg("sum").unstack("range").reset_index()
+    groupby = [col for col in groupby if col != "range"]
+    grouped.columns = groupby + ["max", "mean", "min"]
+
+    if any(grouped["min"] > grouped["mean"]):
+        warn("min > mean, setting min <- mean")
+        mask = grouped["min"] > grouped["mean"]
+        grouped.loc[mask, "min"] = grouped.loc[mask, "mean"]
+    
+    if any(grouped["max"] < grouped["mean"]):
+        warn("mean > max, setting max <- mean")
+        mask = grouped["max"] < grouped["mean"]
+        grouped.loc[mask, "max"] = grouped.loc[mask, "mean"]
+    
+    grouped = grouped.set_index(groupby)
+    grouped.columns.name = "range"
+    asset = grouped.stack("range").rename("expected").reset_index()
+    return asset
+
+
 def assign_road_class(asset, ref, how='left'):
     """Assign road class based on id.
     Join needs to only consider subset of split id
@@ -236,6 +259,9 @@ def prepare_asset(
         raise ValueError(f"Unknown asset geometry type: {asset_geom}")
     if not asset.empty:
         asset = filter_output_stats(asset)
+        asset = asset.drop(columns="geometry")
+        asset = verify_ranges(asset)
+
     return asset
 
 
@@ -283,6 +309,8 @@ if __name__ == "__main__":
                         continue
                     if hazard == "landslide":
                         asset = scale_landslide_risk(asset)
+
+                    asset = verify_ranges(asset)
                     asset.to_parquet(outpath)
                     print(f"Saved cleaned data to {outpath}")
                 except FileNotFoundError as e:
