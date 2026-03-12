@@ -21,18 +21,18 @@ metric = "cost"
 scaling = 1e-6
 savefig = False
 
-assets = [
+asset_filter = [
     "tza_roads_edges",
-    # "tza_roads_bridges_and_culverts_nodes",
-    # "tza_railway_edges",
-    # "tza_hubs_polygons"
+    "tza_roads_bridges_and_culverts_nodes",
+    "tza_railway_edges",
+    "tza_hubs_polygons"
 ]
-hazards = [
+hazard_filter = [
     "fluvial",
     "pluvial",
     "coastal",
     # "landslide",
-    "cyclone",
+    # "cyclone",
     # "hd35",
     # "tasmax"
 ]
@@ -50,9 +50,12 @@ scen_order = ["Base", "Low", "Medium", "High"]
 data = data[data["metric"] == metric].copy()
 data = data.drop(columns="metric")
 
+data = data[data["hazard"].isin(hazard_filter)]
+data = data[data["asset_geom"].isin(asset_filter)]
+
 data["epoch"] = pd.Categorical(data["epoch"], categories=epoch_order, ordered=True)
 data["scenario"] = pd.Categorical(data["scenario"], categories=scen_order, ordered=True)
-data["asset_geom"] = data["asset_geom"].map(labels.assets)
+data["asset"] = data["asset_geom"].map(labels.assets)
 data["hazard"] = data["hazard"].map(labels.hazards)
 data[['min', 'mean', 'max']] = data[['min', 'mean', 'max']] * scaling # million USD
 
@@ -61,7 +64,6 @@ data[['min', 'mean', 'max']] = data[['min', 'mean', 'max']] * scaling # million 
 if True:
     hue = "scenario"
     data_pivot = data.groupby(["epoch", hue])[['min', 'mean', 'max']].sum().reset_index()
-    # data_pivot = data_pivot[data_pivot["max"] > 0].copy()
 
     fig, ax = plt.subplots(figsize=(9, 3), constrained_layout=True)
 
@@ -83,8 +85,9 @@ if True:
 
     width = 0.4
     bar_width = width / n_hues
-    tza_gdp = 87.44 * 1e9 # wikipedia.org/wiki/Economy_of_Tanzania
+    tza_gdp = 87.44 * 1e9 * scaling # wikipedia.org/wiki/Economy_of_Tanzania
 
+    summary = []
     for i, epoch in enumerate(epoch_order):
         for j, hue_val in enumerate(hue_order):
             row = data_pivot[(data_pivot["epoch"] == epoch) & (data_pivot[hue] == hue_val)]
@@ -99,11 +102,15 @@ if True:
                 fmt='none', c='k', capsize=3, linewidth=1
             )
             
-            print(f"{epoch} {hue_val}: {row['mean']:,.2f} ({row['min']:,.2f} - {row['max']:,.2f}), ({(row['mean']/tza_gdp)*100:.3f} % of GDP)")
+            summary.append((epoch, hue_val, row['min'].round(2), row['mean'].round(2), row['max'].round(2), (row['mean']/tza_gdp*100).round(4)))
 
     ax.legend(title=labels.fields[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
     ax.set_xlabel("Epoch", fontweight="bold")
-    ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")  
+    ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")
+
+    summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
+    summary.to_csv(indir / "all.csv")
+    print(summary)
 
 # %%
 # now look at variation between hazards/assets for a given scenario
@@ -135,6 +142,7 @@ if True:
         width = 0.4
         bar_width = width / n_hues
 
+        summary = []
         for i, epoch in enumerate(epoch_order):
             for j, hue_val in enumerate(hue_order):
                 row = data_scen_pivot[(data_scen_pivot["epoch"] == epoch) & (data_scen_pivot[hue] == hue_val)]
@@ -146,11 +154,14 @@ if True:
                 ax.errorbar(x, row["mean"], 
                             yerr=[[row["mean"] - row["min"]], [row["max"] - row["mean"]]], 
                             fmt='none', c='k', capsize=3, linewidth=1)
-                print(f"{epoch} {hue_val}: {row['mean']:,.2f} ({row['min']:,.2f} - {row['max']:,.2f}), ({(row['mean']/tza_gdp)*100:.3f} % of GDP)")
+                summary.append((epoch, hue_val, row['min'].round(2), row['mean'].round(2), row['max'].round(2), (row['mean']/tza_gdp*100).round(4)))
 
         ax.legend(title=labels.fields[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
         
         ax.set_xlabel("Epoch", fontweight="bold")
         ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")
 
+        summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
+        summary.to_csv(indir / f"{hue}.csv")
+        print(summary)
 # %%

@@ -25,8 +25,8 @@ hazards = [
     "coastal",
     "landslide",
     "cyclone",
-    # "hd35",
-    # "tasmax"
+    # "hd35", # TODO: re-add
+    # "tasmax" # TODO: re-add
 ]
 
 
@@ -66,25 +66,11 @@ for asset_geom in assets:
         reslist.append(res)
 
 results = pd.concat(reslist, axis=0, ignore_index=True)
-epoch_order = ["baseline", "2030", "2050", "2080"]
-scen_order = ["Base", "Low", "Medium", "High"]
-range_order = ["min", "mean", "max"]
-
-# results["epoch"] = pd.Categorical(results["epoch"], categories=epoch_order, ordered=True)
-# results["scenario"] = pd.Categorical(results["scenario"], categories=scen_order, ordered=True)
-# results.groupby(["hazard", "epoch", "scenario", "range"])[["expected"]].count()
-
-results["expected"] = results["expected"] #/ 1e6  # million USD
-# results["asset_geom"] = results["asset_geom"].map(labels.assets)
-# results["hazard"] = results["hazard"].map(labels.hazards)
-
-# %%
 groupby = [col for col in results.columns if col != "expected"]
 unstacked = results.groupby(groupby)["expected"].agg("sum").unstack("range").reset_index()
 groupby = [col for col in groupby if col != "range"]
 unstacked.columns = groupby + ["max", "mean", "min"] # alphabetical
 unstacked = unstacked[groupby + ["min", "mean", "max"]]
 
-# %%
 unstacked.to_csv(outdir / "expected.csv")
 # %%
