@@ -16,6 +16,7 @@ plt.rcParams['font.size'] = 8
 plt.rcParams['figure.dpi'] = 300
 
 
+SAVEFIG = False
 METRIC = "cost"
 METRIC_UNIT = "USD"
 RANGE = "mean_mean"
@@ -26,18 +27,15 @@ HAZARDS   = [
     "pluvial",
     "fluvial",
     "coastal",
-    # "hd35",
-    # "tasmax"
+    "hd35",
+    "tasmax"
 ]
 ASSET_GEOMS = [
-    "tza_railway_edges",
+    # "tza_railway_edges",
     "tza_roads_edges",
-    "tza_roads_bridges_and_culverts_nodes",
-    "tza_hubs_polygons",
-    "tza_railway_edges",
-    "tza_roads_edges",
+    # "tza_roads_bridges_and_culverts_nodes",
+    # "tza_hubs_polygons"
 ]
-
 
 def summarise_risk_by_scenario(
         df:pd.DataFrame, metric:str, range_str:str
@@ -90,7 +88,7 @@ if __name__ == "__main__":
         for asset_geom in ASSET_GEOMS:
             # load the asset data
             inpath = indir / asset_geom / hazard
-            asset_df = ttra.load_asset_data(inpath)
+            asset_df = ttra.load_risk_profile(inpath)
 
             # pivot so each row is a scenario/epoch/rp combination
             results = summarise_risk_by_scenario(asset_df, METRIC, RANGE)
@@ -190,10 +188,14 @@ if __name__ == "__main__":
                 
 
             # save figure
-            outpath = figdir / f"{asset_geom}_{hazard}.png"
-            fig.savefig(outpath, bbox_inches='tight')
-            plt.close(fig)
-            print(f"Wrote figure to {outpath}")
+            if SAVEFIG:
+                outpath = figdir / f"{asset_geom}_{hazard}.png"
+                fig.savefig(outpath, bbox_inches='tight')
+                plt.close(fig)
+                print(f"Wrote figure to {outpath}")
+            else:
+                fig.suptitle(f"{asset_geom} + {hazard}")
+                fig
 
 # %%
 

@@ -38,8 +38,8 @@ def standardise_cost_columns(df, currency="usd"):
 if __name__ == "__main__":
     config = config.load_config()
     indir = Path(config['paths']['processed_data']) / "costs"
-    outdir = Path(config["paths"]["snakemake_data"]) / "config" / "rehab_costs"
-    configdir = Path(config['paths']['snakemake_data']) / "config"
+    outdir = Path(config["paths"]["snakemake"]) / "input" / "config" / "rehab_costs"
+    configdir = Path(config['paths']['snakemake']) / "input" / "config"
     outdir.mkdir(parents=True, exist_ok=True)
     print(f"Processing rehab costs from {indir}")
 

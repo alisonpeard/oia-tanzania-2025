@@ -20,8 +20,8 @@ ASSETS = [
 
 def main(config, redo=False):
     indir = Path(config['paths']['processed_data']) / "infrastructure" / "geoparquets"
-    outdir = Path(config['paths']['snakemake_data']) / "assets" / "raw"
-    configdir = Path(config['paths']['snakemake_data']) / "config"
+    outdir = Path(config['paths']['snakemake']) / "input" / "assets"
+    configdir = Path(config['paths']['snakemake']) / "input" / "config"
     os.makedirs(outdir, exist_ok=True)
 
     asset_types = []

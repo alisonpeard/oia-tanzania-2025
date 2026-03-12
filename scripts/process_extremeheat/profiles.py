@@ -41,14 +41,33 @@ def format_ref_index(vector_ref):
     vector_ref = vector_ref.dissolve(by='id', aggfunc='first')
     return vector_ref.reset_index()
 
+def assign_road_class(asset, ref, how='left'):
+    """Assign road class based on id.
+    Join needs to only consider subset of split id
+    """
+    def format_id(id):
+        return '_'.join(id.split('_')[:3])
+    
+    asset["id_parent"] = asset["id"].apply(format_id)
+    ref["id_parent"] = ref["id"].apply(format_id)
+    asset = asset.set_index('id_parent')
+    ref = ref.set_index('id_parent')
+    asset = asset.join(ref[['road_class']], how=how)
+
+    if asset['road_class'].isnull().any():
+        nnan = asset['road_class'].isnull().sum()
+        asset = asset.dropna(subset="road_class")
+        print(f"Warning: {nnan} nans dropped in road_class")
+
+    return asset.set_index('id')
+
 
 def prepare_roads_data(asset, ref):
     def format_road_class(x:str) -> str:
         return x.title()
 
     ref["asset_type"] = ref["asset_type"].str.lower()
-    ref = ref.set_index("id")
-    asset = asset.join(ref[["road_class"]], how="inner") # NOTE: patch: use how='left' later
+    asset = assign_road_class(asset, ref, how='left')
     asset["asset_type"] = asset["road_class"].copy()
     asset["asset_type"] = asset["asset_type"].apply(format_road_class)
     asset = asset.drop(columns=["road_class"])

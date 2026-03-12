@@ -8,6 +8,7 @@ No need to make fake ones; snakemake can handle it. But for clarity will make.
 import os
 import pandas as pd
 from pathlib import Path
+from warnings import warn
 from oi_risk import config
 
 
@@ -19,26 +20,26 @@ INTENSITY_SYNONYMS = ["flood_depth_m", "hazard_score", "wind_speed_m_per_s"]
 
 def check_for_synonyms(df, string, synonyms):
     if string in df.columns:
-        print(f"  ✅ '{string}' found in: {df.columns.tolist()}")
+        print(f"'{string}' found in: {df.columns.tolist()}")
         return df
     else:
         for synonym in synonyms:
             if synonym in df.columns:
-                print(f"  ⚠️  Found synonym for '{string}': {synonym}, renaming.")
+                print(f"Found synonym for '{string}': {synonym}, renaming.")
                 if AUTOFIX:
                     df = df.rename(columns={synonym: string})
                     return df
                 else:
                     print("    (autofix disabled, not renaming)")
                     return df
-        print(f"  ❌ Found no synonyms for unknown field '{string}'.")
+        print(f"Found no synonyms for unknown field '{string}'.")
     return df
 
 
 if __name__ == "__main__":
     config = config.load_config()
     indir = Path(config['paths']['processed_data']) / "damage_curves"
-    outdir = Path(config["paths"]["snakemake_data"]) / "config" / "damage_curves"
+    outdir = Path(config["paths"]["snakemake"]) / "input" / "config" / "damage_curves"
 
     for path in Path(indir).rglob("*.csv"):
         outpath = Path(str(path).replace(str(indir), str(outdir)))
@@ -51,9 +52,18 @@ if __name__ == "__main__":
         df = pd.read_csv(path, comment='#')
         df = check_for_synonyms(df, "intensity", INTENSITY_SYNONYMS)
         df = check_for_synonyms(df, "damage_fraction_mean", DAMAGE_SYNONYMS)
+
+        if "landslides" in str(path):
+            # this is a future fix
+            # if you re-run this then remove scaling from the
+            # process_snakemake scripts.
+            warn("Manually scaling landslide costs and damages.")
+            df = df.set_index("intensity")
+            df = 0.3 * df
+            df.reset_index()
+
         df.to_csv(outpath, index=False)
         print(f"  Wrote to {outpath}\n")
-
 
     asset_types = [p.stem for p in outdir.glob("**/*.csv")]
     

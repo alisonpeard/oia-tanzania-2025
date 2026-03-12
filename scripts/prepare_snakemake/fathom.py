@@ -31,7 +31,7 @@ scenarios = {
 
 def main(config, simulation_type="historical", redo=False):
     indir = Path(config['paths']['incoming_data']) / "hazards" / "fathom"
-    outdir = Path(config['paths']['snakemake_data']) / "hazards" / "raw"
+    outdir = Path(config['paths']['snakemake']) / "input" / "hazards" / "raw"
     os.makedirs(outdir, exist_ok=True)
 
     scen_values = scenarios[simulation_type].values()

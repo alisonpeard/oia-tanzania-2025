@@ -27,7 +27,7 @@ def format_design_standard(rp, hazard, scenario, epoch):
 if __name__ == "__main__":
     config = config.load_config()
     inpath = Path(config['paths']['processed_data']) / "protection_standards"/ "protection_standards_flooding.csv"
-    outdir = Path(config["paths"]["snakemake_data"]) / "config" / "design_standards"
+    outdir = Path(config["paths"]["snakemake"]) / "input" / "config" / "design_standards"
     outdir.mkdir(parents=True, exist_ok=True)
 
     standards_df = pd.read_csv(inpath)

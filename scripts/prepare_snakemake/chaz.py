@@ -1,5 +1,10 @@
 """
-Copy the landslide files to the correct location and format.
+Copy the CHAZ files to the correct location and format.
+
+Other pre-processing:
+- use 2090 to represent 2080 epoch
+- use 2010 simulations to represent 2030 epoch
+- use historical 2010 data to represent ssp126 for all epochs
 """
 # %%
 import os
@@ -15,13 +20,13 @@ SIMULATION_TYPE = ["historical", "future"][1]
 
 scenarios = {
     "historical": {
-        "subcategory": ["landslide"],
-        "rp": ["00005", "00010", "00025", "00050", "00100"],
-        "epoch": ["2015"],
+        "subcategory": ["cyclone"],
+        "rp": ["00010", "00025", "00050", "00250", "01000"],
+        "epoch": ["2010"],
         "scenario": ["historical"]
     }, "future": {
-        "subcategory": ["landslide"],
-        "rp": ["00005", "00010", "00025", "00050", "00100"],
+        "subcategory": ["cyclone"],
+        "rp": ["00010", "00025", "00050", "00250", "01000"],
         "epoch": ["2030", "2050", "2080"],
         "scenario": ["ssp126", "ssp245", "ssp585"]
     }
@@ -31,17 +36,22 @@ def format_input_file(indir, subcategory, rp, epoch, scenario):
     """Match files names and implement assumptions."""
     if scenario == "historical":
         scenario = "baseline"
+    if epoch == "2080":
+        epoch = "2090"
+    if epoch == "2030":
+        epoch = "2010"
+    if scenario == "ssp126":
+        epoch = "2010"
+        scenario = "baseline"
 
     rp = int(rp)
-    
-    filename = f"hazard_polygons_{rp}yr_{epoch}_{scenario}_BAU_runout.tif"
 
-    return indir / filename
+    return indir / f"CHAZ_FIXED_RETURN_PERIODS_{epoch}_{scenario}_mean_{rp}_YR_RP__TZA.tif"
 
 
 def main(config, simulation_type="historical", redo=False):
-    indir = Path(config['paths']['incoming_data']) / "hazards" / "landslides" / "maps"
-    outdir = Path(config['paths']['snakemake_data']) / "hazards" / "raw"
+    indir = Path(config['paths']['incoming_data']) / "hazards" / "chaz"
+    outdir = Path(config['paths']['snakemake']) / "input" / "hazards"
     os.makedirs(outdir, exist_ok=True)
 
     scen_values = scenarios[simulation_type].values()
@@ -50,10 +60,7 @@ def main(config, simulation_type="historical", redo=False):
         pbar.set_postfix(simulation_type=simulation_type, subcategory=subcategory, rp=rp, epoch=epoch, scenario=scenario)
         inpath = format_input_file(indir, subcategory, rp, epoch, scenario)
         outpath = outdir / f"{subcategory}_{epoch}_{scenario}_rp{rp}.tif"
-
-        if not inpath.exists():
-            print(f"  Warning: Source file not found: {inpath}")
-            continue
+        print(f"{inpath} -> {outpath}")
 
         if outpath.exists() and not redo:
             print(f"  Skipping existing: {outpath}")
