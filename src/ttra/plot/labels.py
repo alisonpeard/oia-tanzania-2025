@@ -17,6 +17,7 @@ hazards = {
 }
 
 fields = {
+    "asset": "Infrastructure sector",
     "asset_geom": "Infrastructure sector",
     "hazard": "Climate hazard",
     "scenario": "Climate scenario"
