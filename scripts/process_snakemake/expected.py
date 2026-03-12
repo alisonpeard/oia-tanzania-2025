@@ -10,7 +10,7 @@ Cleaning implemented:
     Bridges:
         - asset_type <- structure_type (using config file)
     Hubs:
-        - group airports, maritime ports, iww ports
+        - group airports, maritime ports, iww ports into 'hubs'
     Landslides:
         - scale damages and costs by 0.3
     Costs:
@@ -45,11 +45,11 @@ from oi_risk import config
 
 REDO = True
 HAZARDS = [
-    "fluvial",
-    "pluvial",
-    "coastal",
+    # "fluvial",
+    # "pluvial",
+    # "coastal",
     "landslide",
-    "cyclone"
+    # "cyclone"
 ]
 ASSETS = [
     "tza_roads_edges",
@@ -59,12 +59,9 @@ ASSETS = [
 ]
 
 
-def scale_landslide_risk(asset:gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def scale_landslide_risk(asset: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     warn("Scaling landslide costs & damages by 0.3. Won't be necessary in future.")
-    id_landslide = asset[asset["hazard"] == "landslide"].index
-    id_cost = asset[asset["metric"] == "cost"].index
-    id_damage = asset[asset["metric"] == "damage"].index
-    id_scale = list(set(id_landslide) & set(id_damage + id_cost))
+    id_scale = asset[asset["metric"].isin(["cost", "damage"])].index
     asset.loc[id_scale, "expected"] *= 0.3
     return asset
 
@@ -266,6 +263,7 @@ def prepare_asset(
 
 
 if __name__ == "__main__":
+    print("Beginning to process expectation files...")
     # configure paths
     config = config.load_config()
     indir = Path(config['paths']['snakemake']) / "results" / "intersections"
@@ -307,10 +305,11 @@ if __name__ == "__main__":
                     if asset.empty:
                         missing.append([asset_geom, hazard, subregion])
                         continue
-                    if hazard == "landslide":
-                        asset = scale_landslide_risk(asset)
 
                     asset = verify_ranges(asset)
+                    if hazard == "landslide":
+                        asset = scale_landslide_risk(asset)
+                    
                     asset.to_parquet(outpath)
                     print(f"Saved cleaned data to {outpath}")
                 except FileNotFoundError as e:
@@ -318,11 +317,13 @@ if __name__ == "__main__":
                     continue
 
 
-missing_df = pd.DataFrame(missing, columns=["asset_geom", "hazard", "subregion"])
-missing_df = missing_df.groupby(["asset_geom", "hazard"]).agg(
-    count=("subregion", "count"),
-    subregions=("subregion", list)
-    )
-missing_df["subregions"] = missing_df["subregions"].str.join(";")
-missing_df.to_csv(outdir / "missing_expected.csv")
+    missing_df = pd.DataFrame(missing, columns=["asset_geom", "hazard", "subregion"])
+    missing_df = missing_df.groupby(["asset_geom", "hazard"]).agg(
+        count=("subregion", "count"),
+        subregions=("subregion", list)
+        )
+    missing_df["subregions"] = missing_df["subregions"].str.join(";")
+    missing_df.to_csv(outdir / "missing_expected.csv")
+
+    print("Finished!")
 # %%

@@ -15,8 +15,22 @@ sys.path.append("..")
 sns.set_style("whitegrid")
 pd.options.display.max_rows = None
 
-metric = "cost"
-scaling = 1e-6
+scaling_dict = {
+    "cost": 1e-6,
+    "damage": 1.,
+    "defended": 1.,
+    "hazard": 1.
+}
+unit_dict = {
+    "cost": "million USD",
+    "damage": "fraction",
+    "defended": "varies by hazard",
+    "hazard": "varies by hazard"
+}
+
+metric  = "defended"
+scaling = scaling_dict[metric]
+unit    = scaling_dict[metric]
 savefig = False
 
 asset_filter = [
@@ -29,7 +43,7 @@ hazard_filter = [
     "fluvial",
     "pluvial",
     "coastal",
-    # "landslide",
+    "landslide",
     # "cyclone",
     # "hd35",
     # "tasmax"
@@ -57,7 +71,7 @@ if __name__ == "__main__":
     data["hazard"] = data["hazard"].map(labels.hazards)
     data[['min', 'mean', 'max']] = data[['min', 'mean', 'max']] * scaling # million USD
     data = data.drop(columns=["metric", "asset_geom"])
-    # %%
+
     if True:
         # inspect variation between scenarios
         hue = "scenario"
@@ -104,7 +118,7 @@ if __name__ == "__main__":
 
         ax.legend(title=labels.fields[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
         ax.set_xlabel("Epoch", fontweight="bold")
-        ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")
+        ax.set_ylabel(f"Expected Annual Damages\n({unit})", fontweight="bold")
 
         summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
         summary.to_csv(indir / "all.csv")
@@ -115,7 +129,7 @@ if __name__ == "__main__":
     if True:
         # inspect variation between hazards or assets for a given scenario
         scenario = "Medium"
-        random.seed(0)
+        random.seed(16)
         colors = palette.copy()
 
         for hue in ["hazard", "asset"]:
