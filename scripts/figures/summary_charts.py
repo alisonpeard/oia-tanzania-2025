@@ -7,6 +7,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
+from matplotlib.colors import ListedColormap
 
 from oi_risk import config as cfg
 from ttra.plot import labels, palette
@@ -29,8 +30,8 @@ unit_dict = {
     "hazard": "varies by hazard"
 }
 
-savefig = False
-metric  = "hazard"
+savefig = True
+metric  = "cost"
 scaling = scaling_dict[metric]
 unit    = scaling_dict[metric]
 
@@ -46,7 +47,7 @@ hazard_filter = [
     "pluvial",
     "coastal",
     "landslide",
-    # "cyclone",
+    "cyclone",
     # "hd35",
     # "tasmax"
 ]
@@ -126,6 +127,9 @@ if __name__ == "__main__":
         summary.to_csv(indir / "all.csv")
         print(summary)
 
+        if savefig:
+            fig.savefig(figdir / f"{metric}.png", transparent=True, dpi=300)
+
     # %%
     import random
 
@@ -182,4 +186,40 @@ if __name__ == "__main__":
             summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
             summary.to_csv(indir / f"{hue}.csv")
             print(summary)
+
+            if savefig:
+                fig.savefig(figdir / f"{metric}_{scenario}_{hue}s.png".lower(), transparent=True, dpi=300)
+    # %%
+    # NEW: conditional stackplots
+    cmap = ListedColormap(colors)
+    xvar = "asset"
+    zvar = "hazard"
+    yvar = "mean"
+    epochs = ["2030", "2050", "2080"]
+    scenarios = ["Low", "Medium", "High"]
+
+    fig, axs = plt.subplots(3, 3, figsize=(9, 9), constrained_layout=True, sharex=True, sharey=True)
+
+    i = 0
+    for epoch in epochs:
+        for scen in scenarios:
+            ax = axs.flat[i]
+            data_sub = data[data['epoch'] == epoch]
+            data_sub = data_sub[data_sub['scenario'] == scen]
+            data_sub = data_sub.groupby([xvar, zvar])[[yvar]].sum(min_count=1).reset_index()
+            data_pivot = data_sub.pivot(index=xvar, columns=zvar, values=yvar)
+            data_pivot.plot(kind='bar', stacked=True, cmap=cmap, ax=ax, legend=(i==0), edgecolor='k', linewidth=0.5)
+            if i == 0:
+                ax.get_legend().set_title(labels.fields[zvar])
+            ax.label_outer()
+            i += 1
+
+    for i, epoch in enumerate(epochs):
+        axs[i, 0].set_ylabel(epoch)
+    
+    for i, scen in enumerate(scenarios):
+        axs[-1, i].set_xlabel(scen)
+
+    if savefig:
+        fig.savefig(figdir / f"{metric}_{scenario}_{xvar}sv{zvar}s.png".lower(), transparent=True, dpi=300)
     # %%
