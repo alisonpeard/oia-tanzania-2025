@@ -68,10 +68,10 @@ def load_risk_expected(asset_dir, subregion=None, verbose=False, nonzero=True):
         asset = pd.concat(asset_dfs, axis=0, ignore_index=True)
 
         try:
-            asset = asset[asset["expected"] > 0].copy() if nonzero else asset_sub
+            asset = asset[asset["expected"] > 0].copy() if nonzero else asset
         except Exception as e:
             print(e)
-            print(asset_sub.head())
+            print(asset.head())
             raise(e)
     
     if verbose:

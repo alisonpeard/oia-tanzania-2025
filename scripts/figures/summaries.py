@@ -21,6 +21,7 @@ scaling_dict = {
     "defended": 1.,
     "hazard": 1.
 }
+
 unit_dict = {
     "cost": "million USD",
     "damage": "fraction",
@@ -28,10 +29,10 @@ unit_dict = {
     "hazard": "varies by hazard"
 }
 
-metric  = "defended"
+savefig = False
+metric  = "hazard"
 scaling = scaling_dict[metric]
 unit    = scaling_dict[metric]
-savefig = False
 
 asset_filter = [
     "tza_roads_edges",
@@ -39,6 +40,7 @@ asset_filter = [
     "tza_railway_edges",
     "tza_hubs_polygons"
 ]
+
 hazard_filter = [
     "fluvial",
     "pluvial",
@@ -55,7 +57,6 @@ if __name__ == "__main__":
     figdir = Path(config["paths"]["figures"]) / "summaries"
     figdir.mkdir(exist_ok=True, parents=True)
 
-
     data = pd.read_csv(indir / "expected.csv", index_col=[0])
     epoch_order = ["baseline", "2030", "2050", "2080"]
     scen_order = ["Base", "Low", "Medium", "High"]
@@ -67,11 +68,10 @@ if __name__ == "__main__":
     data["epoch"] = pd.Categorical(data["epoch"], categories=epoch_order, ordered=True)
     data["scenario"] = pd.Categorical(data["scenario"], categories=scen_order, ordered=True)
     data["asset"] = data["asset_geom"].map(labels.assets)
-
     data["hazard"] = data["hazard"].map(labels.hazards)
     data[['min', 'mean', 'max']] = data[['min', 'mean', 'max']] * scaling # million USD
     data = data.drop(columns=["metric", "asset_geom"])
-
+    # %%
     if True:
         # inspect variation between scenarios
         hue = "scenario"
@@ -107,12 +107,14 @@ if __name__ == "__main__":
                     continue
                 row = row.iloc[0]
                 
-                x = i + (j - n_hues/2 + 0.5) * bar_width
-                ax.errorbar(
-                    x, row["mean"],
-                    yerr=[[row["mean"] - row["min"]], [row["max"] - row["mean"]]],
-                    fmt='none', c='k', capsize=3, linewidth=1
-                )
+                if metric in ["damage", "cost"]:
+                    # no ranges for hazards
+                    x = i + (j - n_hues/2 + 0.5) * bar_width
+                    ax.errorbar(
+                        x, row["mean"],
+                        yerr=[[row["mean"] - row["min"]], [row["max"] - row["mean"]]],
+                        fmt='none', c='k', capsize=3, linewidth=1
+                    )
                 
                 summary.append((epoch, hue_val, row['min'].round(2), row['mean'].round(2), row['max'].round(2), (row['mean']/tza_gdp*100).round(4)))
 
@@ -126,6 +128,7 @@ if __name__ == "__main__":
 
     # %%
     import random
+
     if True:
         # inspect variation between hazards or assets for a given scenario
         scenario = "Medium"
@@ -136,7 +139,6 @@ if __name__ == "__main__":
             random.shuffle(colors)
             
             data_scen = data[data["scenario"].isin(["Baseline", scenario])].copy()
-
             data_scen_pivot = data_scen.groupby(["epoch", hue])[['min', 'mean', 'max']].sum().reset_index()
 
             fig, ax = plt.subplots(figsize=(9, 3), constrained_layout=True)
@@ -165,11 +167,11 @@ if __name__ == "__main__":
                     if row.empty:
                         continue
                     row = row.iloc[0]
-                    
-                    x = i + (j - n_hues/2 + 0.5) * bar_width
-                    ax.errorbar(x, row["mean"], 
-                                yerr=[[row["mean"] - row["min"]], [row["max"] - row["mean"]]], 
-                                fmt='none', c='k', capsize=3, linewidth=1)
+                    if metric in ["damage", "cost"]:
+                        x = i + (j - n_hues/2 + 0.5) * bar_width
+                        ax.errorbar(x, row["mean"], 
+                                    yerr=[[row["mean"] - row["min"]], [row["max"] - row["mean"]]], 
+                                    fmt='none', c='k', capsize=3, linewidth=1)
                     summary.append((epoch, hue_val, row['min'].round(2), row['mean'].round(2), row['max'].round(2), (row['mean']/tza_gdp*100).round(4)))
 
             ax.legend(title=labels.fields[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))

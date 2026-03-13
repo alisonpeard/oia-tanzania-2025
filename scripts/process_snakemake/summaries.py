@@ -46,6 +46,7 @@ if __name__ == "__main__":
                 continue
 
             asset = load_risk_expected(inpath, verbose=False)
+
             if asset is None:
                 print(f"No expected.parquet files found for ({asset_geom}, {hazard})")
                 missing.append((asset_geom, hazard))
@@ -72,4 +73,6 @@ if __name__ == "__main__":
     unstacked = unstacked[groupby + ["min", "mean", "max"]]
 
     unstacked.to_csv(outdir / "expected.csv")
+
+    print("finished.")
 # %%

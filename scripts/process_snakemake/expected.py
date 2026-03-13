@@ -45,11 +45,11 @@ from oi_risk import config
 
 REDO = True
 HAZARDS = [
-    # "fluvial",
-    # "pluvial",
-    # "coastal",
+    "fluvial",
+    "pluvial",
+    "coastal",
     "landslide",
-    # "cyclone"
+    "cyclone"
 ]
 ASSETS = [
     "tza_roads_edges",
@@ -83,24 +83,32 @@ def filter_output_stats(asset:gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 def verify_ranges(asset:gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Check no min > mean or mean > max"""
-    groupby = [col for col in asset.columns if col != "expected"]
-    grouped = asset.groupby(groupby).agg("sum").unstack("range").reset_index()
-    groupby = [col for col in groupby if col != "range"]
-    grouped.columns = groupby + ["max", "mean", "min"]
 
-    if any(grouped["min"] > grouped["mean"]):
-        warn("min > mean, setting min <- mean")
-        mask = grouped["min"] > grouped["mean"]
-        grouped.loc[mask, "min"] = grouped.loc[mask, "mean"]
+    groupby = [col for col in asset.columns if col != "expected"]
+    grouped = asset.groupby(groupby).sum(min_count=1)
+    grouped = grouped.unstack("range").reset_index()
+    groupby = [col for col in groupby if col != "range"]
+    grouped.columns = groupby + ['max', 'mean', 'min']
+
+    if 'min' in grouped.columns:
+        if any(grouped["min"] > grouped["mean"]):
+            warn("min > mean, setting min <- mean")
+            mask = grouped["min"] > grouped["mean"]
+            grouped.loc[mask, "min"] = grouped.loc[mask, "mean"]
     
-    if any(grouped["max"] < grouped["mean"]):
-        warn("mean > max, setting max <- mean")
-        mask = grouped["max"] < grouped["mean"]
-        grouped.loc[mask, "max"] = grouped.loc[mask, "mean"]
+    if 'max' in grouped.columns:
+        if any(grouped["max"] < grouped["mean"]):
+            warn("mean > max, setting max <- mean")
+            mask = grouped["max"] < grouped["mean"]
+            grouped.loc[mask, "max"] = grouped.loc[mask, "mean"]
     
     grouped = grouped.set_index(groupby)
     grouped.columns.name = "range"
     asset = grouped.stack("range").rename("expected").reset_index()
+
+     # remove any spurious creations after stack op
+    asset = asset.dropna(subset="expected")
+
     return asset
 
 
@@ -147,6 +155,7 @@ def prepare_roads_data(asset_dir, ref_dir, subregion=None, verbose=False):
     asset["asset_type"] = asset["road_class"].copy()
     asset["asset_type"] = asset["asset_type"].apply(format_asset)
     asset = asset.drop(columns=["road_class"])
+
     return asset.reset_index()
 
 
@@ -312,6 +321,7 @@ if __name__ == "__main__":
                     
                     asset.to_parquet(outpath)
                     print(f"Saved cleaned data to {outpath}")
+                
                 except FileNotFoundError as e:
                     missing.append([asset_geom, hazard, subregion])
                     continue
@@ -325,5 +335,5 @@ if __name__ == "__main__":
     missing_df["subregions"] = missing_df["subregions"].str.join(";")
     missing_df.to_csv(outdir / "missing_expected.csv")
 
-    print("Finished!")
+    print("finished.")
 # %%
