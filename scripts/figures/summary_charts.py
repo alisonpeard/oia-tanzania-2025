@@ -54,8 +54,8 @@ hazard_filter = [
 
 if __name__ == "__main__":
     config = cfg.load_config()
-    indir = Path(config["paths"]["results"]) / "summaries"
-    figdir = Path(config["paths"]["figures"]) / "summaries"
+    indir = Path(config["paths"]["results"]) / "summary_tables"
+    figdir = Path(config["paths"]["figures"]) / "summary_charts"
     figdir.mkdir(exist_ok=True, parents=True)
 
     data = pd.read_csv(indir / "expected.csv", index_col=[0])
