@@ -11,6 +11,7 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from pathlib import Path
 from scipy import integrate
 import logging
 from oi_risk import config
@@ -149,7 +150,7 @@ def main(input, output, params=None):
 
 if __name__ == "__main__":
 
-    for asset in ["tza_railway_edges"]:#, "tza_roads_edges"]:
+    for asset in ["tza_roads_edges"]: #["tza_railway_edges", "tza_roads_edges"]:
 
         cfg = config.load_config()
         wd = Path(cfg["paths"]["results"]) / "intersections" / asset / "extremeheat"

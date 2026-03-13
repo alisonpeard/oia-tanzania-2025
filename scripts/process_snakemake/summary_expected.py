@@ -14,7 +14,7 @@ from ttra.plot import labels, palette
 sys.path.append("..") 
 
 assets = [
-    # "tza_roads_edges",
+    "tza_roads_edges",
     "tza_roads_bridges_and_culverts_nodes",
     "tza_railway_edges",
     "tza_hubs_polygons"
@@ -26,8 +26,6 @@ hazards = [
     "landslide",
     "cyclone",
     "extremeheat"
-    # "hd35",  # TODO: re-add
-    # "tasmax" # TODO: re-add
 ]
 
 if __name__ == "__main__":
