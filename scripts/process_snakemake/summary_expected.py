@@ -14,7 +14,7 @@ from ttra.plot import labels, palette
 sys.path.append("..") 
 
 assets = [
-    "tza_roads_edges",
+    # "tza_roads_edges",
     "tza_roads_bridges_and_culverts_nodes",
     "tza_railway_edges",
     "tza_hubs_polygons"
@@ -25,6 +25,7 @@ hazards = [
     "coastal",
     "landslide",
     "cyclone",
+    "extremeheat"
     # "hd35",  # TODO: re-add
     # "tasmax" # TODO: re-add
 ]
@@ -32,7 +33,7 @@ hazards = [
 if __name__ == "__main__":
     config = cfg.load_config()
     indir = Path(config["paths"]["results"]) / "intersections"
-    outdir = Path(config["paths"]["results"]) / "summaries"
+    outdir = Path(config["paths"]["results"]) / "summary_tables"
     outdir.mkdir(exist_ok=True, parents=True)
 
     reslist = []
@@ -71,8 +72,8 @@ if __name__ == "__main__":
     groupby = [col for col in groupby if col != "range"]
     unstacked.columns = groupby + ["max", "mean", "min"] # alphabetical
     unstacked = unstacked[groupby + ["min", "mean", "max"]]
-
     unstacked.to_csv(outdir / "expected.csv")
 
     print("finished.")
+
 # %%

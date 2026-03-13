@@ -1,4 +1,6 @@
-"""Same code as github.com/oi-analytics/direct-damages-workflow
+"""Calculate EADs over all extreme heat results.
+
+Same code as github.com/oi-analytics/direct-damages-workflow
 
 Use trapezoidal integration to avoid overfitting and negative EAD values.
 """
@@ -13,6 +15,7 @@ from scipy import integrate
 import logging
 from oi_risk import config
 
+REDO = True
 
 def extract_hazard_info(hazcol:str) -> tuple[str, str, str, int]:
     """Extract hazard, epoch, scenario, and return period from hazard column name."""
@@ -117,12 +120,14 @@ def main(input, output, params=None):
         risk_tuples.tolist(),
         columns=["metric", "hazard", "epoch", "scenario", "rp", "range"]
     )
-    # risk_df = risk_df.reset_index(drop=True).join(risk_info)
     risk_df = risk_df.drop(columns="index").join(risk_info)
     
     # melt to long format
     id_cols = ["metric", "hazard", "epoch", "scenario", "rp", "range"]
     risk_df = risk_df.melt(id_vars=id_cols, var_name="id", value_name="value")
+
+    # to prevent accidentally dropping metrics (hazard) without ranges
+    risk_df["range"] = risk_df["range"].fillna("mean")
     risk_df["value"] = risk_df["value"].fillna(0.0)
 
     # vectorised ead calculation
@@ -144,20 +149,20 @@ def main(input, output, params=None):
 
 if __name__ == "__main__":
 
-    for asset in ["tza_railway_edges", "tza_roads_edges"]:
+    for asset in ["tza_railway_edges"]:#, "tza_roads_edges"]:
 
         cfg = config.load_config()
-        inp_dir = cfg["paths"]["heat_results"]
-        out_dir = cfg["paths"]["heat_results"]
+        wd = Path(cfg["paths"]["results"]) / "intersections" / asset / "extremeheat"
 
-        pattern = os.path.join(inp_dir, "intersections", asset, "*", "profile.geoparquet")
+        pattern = os.path.join(wd, "*", "profile.geoparquet")
 
         inputs = glob(pattern)
 
         for input in tqdm(inputs):
             output = input.replace("profile.geoparquet", "expected.parquet")
-            if os.path.exists(output):
+            if os.path.exists(output) and not REDO:
                 print(f"Already exists: {output}")
                 continue
             main(input, output)
 # %%
+

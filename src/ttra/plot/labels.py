@@ -13,7 +13,7 @@ hazards = {
     "cyclone": "Cyclones",
     "hd35": "Extreme heat",
     "tasmax": "Extreme heat",
-    "heat": "Extreme heat" # new column to groupby heat
+    "extremeheat": "Extreme heat"
 }
 
 fields = {
@@ -40,5 +40,6 @@ baselines = {
     "pluvial": "2020",
     "cyclone": "2010",
     "hd35": "2010",
-    "tasmax": "2010"
+    "tasmax": "2010",
+    "extremeheat": "2010"
 }

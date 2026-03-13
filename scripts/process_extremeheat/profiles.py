@@ -21,33 +21,53 @@ from pathlib import Path
 from tqdm import tqdm
 from oi_risk import config
 
-
-config = config.load_config()
-inp_dir = os.path.join(config["paths"]["heat_results"], "intersections")
-ref_dir = os.path.join(config["paths"]["snakemake_data"], "assets")
-out_dir = os.path.join(config["paths"]["heat_results"], "intersections")
 pd.options.display.max_columns = None
 
 
-def format_ref_index(vector_ref):
-    """NOTE: This is a patch to match with Pamela's older results.
+REDO = True
+asset = ["tza_roads_edges", "tza_railway_edges"][0]
+rename_hazards = {
+    "tasmax": "extremeheat",
+    "hd35": "extremeheat"
+}
+
+
+def rename_heat_columns(vector:pd.DataFrame) -> pd.DataFrame:
+    heatstrs = list(rename_hazards.keys())
+    heatcols = [c for c in vector.columns if any(s in c for s in heatstrs)]
     
-    Won't be needed in future.
+    rename_map = {
+        c: c.replace(old, new)
+        for c in heatcols
+        for old, new in rename_hazards.items()
+        if old in c
+    }
+    return vector.rename(columns=rename_map)
+
+
+def format_ref_index(vector_ref):
+    """NOTE: This is a patch to match with Pamela's results.
+    
+    The newer code has an extra suffix in 'id' to keep track
+    of splits across borders. The older code did not do this
+    so we need to match based on the ids without the suffixes.
     """
-    # aggfunc =  dict(road_class='first', asset_type='first')
+
     def format_index(index):
         return '_'.join(index.split('_')[:-1])
+
     vector_ref['id'] = vector_ref['id'].apply(format_index)
     vector_ref = vector_ref.dissolve(by='id', aggfunc='first')
     return vector_ref.reset_index()
+
 
 def assign_road_class(asset, ref, how='left'):
     """Assign road class based on id.
     Join needs to only consider subset of split id
     """
-    def format_id(id):
+    def format_id(id:str) -> str:
         return '_'.join(id.split('_')[:3])
-    
+    asset = asset.reset_index(drop=False)
     asset["id_parent"] = asset["id"].apply(format_id)
     ref["id_parent"] = ref["id"].apply(format_id)
     asset = asset.set_index('id_parent')
@@ -188,9 +208,12 @@ def clean_duplicate_columns(df, cost_cols):
 
 
 if __name__ == "__main__":
+    config = config.load_config()
 
-    asset = ["tza_roads_edges", "tza_railway_edges"][1]
-    
+    inp_dir = Path(config["paths"]["extremeheat"]) / "intersections"
+    ref_dir = Path(config["paths"]["snakemake"]) / "temp" / "assets"
+    out_dir = Path(config["paths"]["results"]) / "intersections"
+
     paths = glob(f"{inp_dir}/{asset}/*/splits.geoparquet")
 
     for splits_path in tqdm(paths):
@@ -203,18 +226,20 @@ if __name__ == "__main__":
             paths = [splits_path]
 
         subregion = Path(splits_path).parent.name
-        os.makedirs(os.path.join(out_dir, asset, subregion), exist_ok=True)
 
         print(f"Processing {asset} - {subregion}...")
         
-        out_path = splits_path.replace(inp_dir, out_dir).replace("splits", "profile")
+        out_path = out_dir / asset / "extremeheat" / subregion / "profile.geoparquet"
         
-        if os.path.exists(out_path):
+        if os.path.exists(out_path) and not REDO:
             print(f"Already exists: {out_path}")
             continue
-        
-        ref_path = splits_path.replace(inp_dir, ref_dir).replace("/splits", "")
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+
+        ref_path = Path(str(splits_path).replace(str(inp_dir), str(ref_dir)).replace("/splits", ""))
+
+        print(out_path)
+        print(ref_path)
 
         vector_ref = gpd.read_parquet(ref_path)
         vector_ref = format_ref_index(vector_ref) # NOTE: patch won't need later
@@ -245,14 +270,17 @@ if __name__ == "__main__":
             )
 
             vector_clean = prepare_data(vector, asset, vector_ref)
+
             # ensure "id" is the index column
             if not vector_clean.index.name == "id":
                 vector_clean = vector_clean.set_index("id")
             sub_dfs.append(vector_clean)
 
         vector_clean = pd.concat(sub_dfs, ignore_index=False)
+        vector_clean = rename_heat_columns(vector_clean)
         vector_clean.to_parquet(out_path)
         print(f"Saved to {out_path}")
+        # break # TODO
 
 vector_clean.describe()
 # %%

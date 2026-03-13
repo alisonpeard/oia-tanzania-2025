@@ -36,7 +36,7 @@ scaling = scaling_dict[metric]
 unit    = scaling_dict[metric]
 
 asset_filter = [
-    "tza_roads_edges",
+    # "tza_roads_edges",
     "tza_roads_bridges_and_culverts_nodes",
     "tza_railway_edges",
     "tza_hubs_polygons"
@@ -48,6 +48,7 @@ hazard_filter = [
     "coastal",
     "landslide",
     "cyclone",
+    "extremeheat"
     # "hd35",
     # "tasmax"
 ]
@@ -59,6 +60,7 @@ if __name__ == "__main__":
     figdir.mkdir(exist_ok=True, parents=True)
 
     data = pd.read_csv(indir / "expected.csv", index_col=[0])
+    # %%
     epoch_order = ["baseline", "2030", "2050", "2080"]
     scen_order = ["Base", "Low", "Medium", "High"]
     data = data[data["metric"] == metric].copy()
@@ -192,8 +194,8 @@ if __name__ == "__main__":
     # %%
     # NEW: conditional stackplots
     cmap = ListedColormap(colors)
-    xvar = "asset"
-    zvar = "hazard"
+    xvar = "hazard"
+    zvar = "asset"
     yvar = "mean"
     epochs = ["2030", "2050", "2080"]
     scenarios = ["Low", "Medium", "High"]
