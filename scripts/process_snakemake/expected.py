@@ -45,19 +45,19 @@ import ttra
 from oi_risk import config
 
 
-REDO = True
-HAZARDS = [
+remake = False
+hazards = [
     "fluvial",
     "pluvial",
     "coastal",
     "landslide",
     "cyclone"
 ]
-ASSETS = [
+assets = [
     "tza_roads_edges",
-    # "tza_roads_bridges_and_culverts_nodes",
-    # "tza_railway_edges",
-    # "tza_hubs_polygons"
+    "tza_roads_bridges_and_culverts_nodes",
+    "tza_railway_edges",
+    "tza_hubs_polygons"
 ]
 exclude = [
     'kaskazini_unguja', 'kusini_unguja',
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     with open(regions_file, "r") as f:
         subregions = [line.strip() for line in f.readlines()]
 
-    combinations = list(product(ASSETS, HAZARDS, subregions))
+    combinations = list(product(assets, hazards, subregions))
 
     missing = []
     for asset_geom, hazard, subregion in (pbar := tqdm(combinations, leave=False)):
@@ -307,7 +307,8 @@ if __name__ == "__main__":
             missing.append([asset_geom, hazard, subregion, "excluded"])
             continue
 
-        if os.path.exists(outpath) and not REDO:
+
+        if os.path.exists(outpath) and not remake:
             continue
 
         outpath.parent.mkdir(parents=True, exist_ok=True)

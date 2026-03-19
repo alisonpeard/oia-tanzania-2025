@@ -34,8 +34,6 @@ rename_hazards = {
 }
 
 exclude = [
-    # TODO: remove these once railway mystery is solved
-    # TODO: remove comments once done (if comments are here, then not done)
     'kaskazini_unguja', 'kusini_unguja',
     'mjini_magharibi',
     'kaskazini_pemba','kusini_pemba' 

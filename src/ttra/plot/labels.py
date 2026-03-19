@@ -11,7 +11,7 @@ hazards = {
     "coastal": "Coastal flooding",
     "landslide": "Landslides",
     "cyclone": "Cyclones",
-    "hd35": "Extreme heat"
+    "extremeheat": "Extreme heat"
 }
 
 fields = {

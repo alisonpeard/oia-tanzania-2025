@@ -120,7 +120,13 @@ if __name__ == "__main__":
                         fmt='none', c='k', capsize=3, linewidth=1
                     )
                 
-                summary.append((epoch, hue_val, row['min'].round(2), row['mean'].round(2), row['max'].round(2), (row['mean']/tza_gdp*100).round(4)))
+                summary.append((
+                    epoch, hue_val, row['min'].round(2),
+                    row['mean'].round(2), row['max'].round(2),
+                    (row['mean']/tza_gdp*100).round(4),
+                    (row['mean']/tza_gdp*100).round(4),
+                    (row['mean']/tza_gdp*100).round(4),
+                ))
 
         ax.legend(title=labels.fields[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
         ax.set_xlabel("Epoch", fontweight="bold")
@@ -188,7 +194,7 @@ if __name__ == "__main__":
             ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")
 
             summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
-            print(summary)
+            print(f"\nSummary {hue}:\n{summary}\n")
 
             if savefig:
                 summary.to_csv(indir / f"{metric}_{scenario}_{hue}.csv".lower(), index=False)

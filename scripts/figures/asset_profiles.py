@@ -24,18 +24,17 @@ from oi_risk import config as cfg
 
 plt.rcParams.update({'font.size': 12, 'axes.titlesize': 14, 'axes.labelsize': 12})
 
-dryrun = True
+dryrun = False
 hazards   = [
     # "fluvial",
-    "pluvial",
+    # "pluvial",
     # "coastal",
     # "cyclone",
     # "landslide",
-    # "hd35",
-    # "tasmax"
+    "extremeheat"
 ]
 asset_geoms = [
-    # "tza_roads_edges",
+    "tza_roads_edges",
     "tza_railway_edges",
     # "tza_roads_bridges_and_culverts_nodes",
     # "tza_hubs_polygons",
