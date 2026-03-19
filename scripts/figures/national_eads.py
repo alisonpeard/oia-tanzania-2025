@@ -195,16 +195,44 @@ if __name__ == "__main__":
                 fig.savefig(figdir / f"{metric}_{scenario}_{hue}s.png".lower(), transparent=True, dpi=300)
     # %%
     # Add new conditional stackplots
-    yvar = "mean"
+    ymid = "mean"
+    ymin = "min"
+    ymax = "max"
     epochs = ["2030", "2050", "2080"]
     scenarios = ["Low", "Medium", "High"]
+
+
+    def add_errorbars(ax, ymin, ymid, ymax):
+        total_mid = ymid.sum(axis=1)
+        total_min = ymin.sum(axis=1)
+        total_max = ymax.sum(axis=1)
+
+        error_lower = total_mid - total_min
+        error_upper = total_max - total_mid
+
+        xpos = range(len(total_mid))
+        ax.errorbar(
+            x=xpos,
+            y=total_mid.values,
+            yerr=[error_lower.values, error_upper.values],
+            fmt='none',
+            c='k',
+            capsize=3,
+            linewidth=0.5,
+            zorder=5
+        )
+
 
     for xvar, zvar, clrmap in [
         ["hazard", "asset", assetclrs],
         ["asset", "hazard", hazardclrs]
         ]:
 
-        fig, axs = plt.subplots(3, 3, figsize=(8, 5), constrained_layout=True, sharex=True, sharey=True)
+        fig, axs = plt.subplots(
+            3, 3, figsize=(10, 5), constrained_layout=True,
+            sharex=True, sharey=True,
+            gridspec_kw={'wspace': 0.05}
+        )
 
         i = 0
         for epoch in epochs:
@@ -212,19 +240,35 @@ if __name__ == "__main__":
                 ax = axs.flat[i]
                 data_sub = data[data['epoch'] == epoch]
                 data_sub = data_sub[data_sub['scenario'] == scen]
-                data_sub = data_sub.groupby([xvar, zvar])[[yvar]].sum(min_count=1).reset_index()
-                data_pivot = data_sub.pivot(index=xvar, columns=zvar, values=yvar)
 
+                data_mid = data_sub.groupby([xvar, zvar])[[ymid]].sum(min_count=1).reset_index()
+                data_mid = data_mid.pivot(index=xvar, columns=zvar, values=ymid)
 
-                clrs = [clrmap[col] for col in data_pivot.columns]
-                data_pivot.plot(kind='bar', stacked=True, color=clrs, ax=ax, legend=False, edgecolor='k', linewidth=0.5)
+                data_min = data_sub.groupby([xvar, zvar])[[ymin]].sum(min_count=1).reset_index()
+                data_min = data_min.pivot(index=xvar, columns=zvar, values=ymin)
+
+                data_max = data_sub.groupby([xvar, zvar])[[ymax]].sum(min_count=1).reset_index()
+                data_max = data_max.pivot(index=xvar, columns=zvar, values=ymax)
+
+                clrs = [clrmap[col] for col in data_mid.columns]
+                data_mid.plot(
+                    kind='bar', stacked=True, color=clrs, ax=ax,
+                    legend=False, edgecolor='k', linewidth=0.5
+                )
 
                 # adjust subplot appearances
                 ax.label_outer()
                 ax.grid(axis='x', visible=False)
-                ax.set_yticks(range(0, int(data[yvar].max()) + 50, 25))
+                add_errorbars(ax, data_min, data_mid, data_max)
                 i += 1
 
+        # clean y-axis ticks and gridlines
+        ymax_val = data[ymax].max()
+        step = 50 if ymax_val > 250 else 25
+        ticks = range(0, int(ymax_val) + step, step)
+        for ax in axs.flat:
+            ax.set_yticks(ticks)
+            ax.set_ylim(ticks[0], ticks[-1])
 
         # make legend
         handles, lbels = ax.get_legend_handles_labels()
