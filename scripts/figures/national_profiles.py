@@ -19,20 +19,20 @@ plt.rcParams['figure.dpi'] = 300
 SAVEFIG = False
 METRIC = "cost"
 METRIC_UNIT = "USD"
-RANGE = "mean_mean"
+RANGE = "mean"
 SCALE_FACTOR = 1e-6
 HAZARDS   = [
     "cyclone",
-    "landslide",
-    "pluvial",
-    "fluvial",
-    "coastal",
-    "hd35",
-    "tasmax"
+    # "landslide",
+    # "pluvial",
+    # "fluvial",
+    # "coastal",
+    # "hd35",
+    # "tasmax"
 ]
 ASSET_GEOMS = [
-    # "tza_railway_edges",
-    "tza_roads_edges",
+    "tza_railway_edges",
+    # "tza_roads_edges",
     # "tza_roads_bridges_and_culverts_nodes",
     # "tza_hubs_polygons"
 ]

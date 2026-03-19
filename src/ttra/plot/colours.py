@@ -2,14 +2,26 @@ import matplotlib.colors as mcolors
 import cartopy.feature as cfeature
 
 
-__all__ = ["palette", "create_white_to_color_cmap"]
-
-
 palette = [
     '#E64B35', '#4DBBD5', '#00A087', '#3C5488', '#F39B7F',
     '#8491B4', '#91D1C2', '#DC0000', '#7E6148', '#B09C85'
 ]
 
+hazardclrs = {
+    'Pluvial flooding': '#3C5488',
+    'Fluvial flooding': '#4DBBD5',
+    'Coastal flooding': '#91D1C2',
+    'Cyclones': '#00A087',
+    'Landslides':'#B09C85' ,
+    'Extreme heat': '#E64B35'
+}
+
+assetclrs = {
+    'Roads': '#DC0000',
+    'Railways': '#7E6148',
+    'Bridges & Culverts':'#8491B4',
+    'Ports & Airports': '#00A087',
+}
 
 def create_white_to_color_cmap(hex_color, name='custom'):
     """Create a colormap that goes from white to a specified color.
@@ -19,3 +31,5 @@ def create_white_to_color_cmap(hex_color, name='custom'):
     colors = ['beige', hex_color]
     cmap = mcolors.LinearSegmentedColormap.from_list(name, colors)#, gamma=.4)
     return cmap
+
+

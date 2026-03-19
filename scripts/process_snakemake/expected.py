@@ -1,8 +1,12 @@
 """
-Post-process results for reporting. Ideally hazards would not need
+Post-process expected values for reporting. Ideally hazards would not need
 post-processing because it would be done before snakemake.
 
-Cleaning implemented:
+Add post-processing steps as needed.
+
+NOTE: don't do heat here (handled separately)
+
+Post-processing implemented:
     Roads:
         - asset_type <- road_class (using ref data)
     Rail:
@@ -15,6 +19,7 @@ Cleaning implemented:
         - scale damages and costs by 0.3
     Costs:
         - change stat0_stat1 syntax to stat0 and drop cases where stat0≠stat1
+    Remove any subregions that should be excludeed (e.g., islands)
     
 
 Inputs:
@@ -23,21 +28,18 @@ Inputs:
 Outputs:
     results/intersections/*/expected.parquet
     results/intersections/missing_expected.csv
-
-
-NOTE: don't do heat here (handled separately)
-NOTE: add hazard post-processing as needed.
-NOTE: newest snakemake annual.parquet -> expected.parquet
-NOTE: using snakemake_results but new results in snakemake_data
 """
 # %%
 import os
+import shutil
+import subprocess
 from glob import glob
 from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
 from warnings import warn
+from itertools import product
 
 import ttra
 from oi_risk import config
@@ -53,11 +55,15 @@ HAZARDS = [
 ]
 ASSETS = [
     "tza_roads_edges",
-    "tza_roads_bridges_and_culverts_nodes",
-    "tza_railway_edges",
-    "tza_hubs_polygons"
+    # "tza_roads_bridges_and_culverts_nodes",
+    # "tza_railway_edges",
+    # "tza_hubs_polygons"
 ]
-
+exclude = [
+    'kaskazini_unguja', 'kusini_unguja',
+    'mjini_magharibi',
+    'kaskazini_pemba','kusini_pemba' 
+]
 
 def scale_landslide_risk(asset: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     warn("Scaling landslide costs & damages by 0.3. Won't be necessary in future.")
@@ -286,54 +292,66 @@ if __name__ == "__main__":
     with open(regions_file, "r") as f:
         subregions = [line.strip() for line in f.readlines()]
 
+    combinations = list(product(ASSETS, HAZARDS, subregions))
+
     missing = []
-    for asset_geom in (pbar := tqdm(ASSETS)):
-        for hazard in HAZARDS:
-            for subregion in subregions:
+    for asset_geom, hazard, subregion in (pbar := tqdm(combinations, leave=False)):
+        pbar.set_postfix(asset=asset_geom, hazard=hazard, subregion=subregion)
 
-                outpath = outdir / asset_geom / hazard / subregion / "expected.parquet"
+        outpath = outdir / asset_geom / hazard / subregion / "expected.parquet"
 
-                if os.path.exists(outpath) and not REDO:
-                    continue
+        if subregion in exclude and outpath.exists():
+            tmpdir = outdir / asset_geom / hazard / subregion
+            print(f"Removing {tmpdir} from results.")
+            shutil.rmtree(tmpdir)
+            missing.append([asset_geom, hazard, subregion, "excluded"])
+            continue
 
-                pbar.set_postfix(asset=asset_geom, hazard=hazard, subregion=subregion)
-                
-                outpath.parent.mkdir(parents=True, exist_ok=True)
-                asset_dir = indir / asset_geom / hazard
-                refdir_asset = refdir / asset_geom
+        if os.path.exists(outpath) and not REDO:
+            continue
 
-                try:
-                    asset = prepare_asset(
-                        asset_geom=asset_geom,
-                        asset_dir=asset_dir,
-                        subregion=subregion,
-                        cfgdir=cfgdir,
-                        refdir=refdir_asset,
-                        verbose=True
-                    )
-                    if asset.empty:
-                        missing.append([asset_geom, hazard, subregion])
-                        continue
+        outpath.parent.mkdir(parents=True, exist_ok=True)
+        asset_dir = indir / asset_geom / hazard
+        refdir_asset = refdir / asset_geom
 
-                    asset = verify_ranges(asset)
-                    if hazard == "landslide":
-                        asset = scale_landslide_risk(asset)
-                    
-                    asset.to_parquet(outpath)
-                    print(f"Saved cleaned data to {outpath}")
-                
-                except FileNotFoundError as e:
-                    missing.append([asset_geom, hazard, subregion])
-                    continue
+        try:
+            pbar.set_postfix(asset=asset_geom, hazard=hazard, subregion=subregion, status="loading...")
+            asset = prepare_asset(
+                asset_geom=asset_geom,
+                asset_dir=asset_dir,
+                subregion=subregion,
+                cfgdir=cfgdir,
+                refdir=refdir_asset,
+                verbose=True
+            )
+            if asset.empty:
+                missing.append([asset_geom, hazard, subregion, "empty"])
+                continue
+
+            pbar.set_postfix(status="processing...")
+            asset = verify_ranges(asset)
+            if hazard == "landslide":
+                asset = scale_landslide_risk(asset)
+            
+            pbar.set_postfix(status="saving...")
+            asset.to_parquet(outpath)
+            print(f"Saved cleaned data to {outpath}")
+        
+        except FileNotFoundError as e:
+            missing.append([asset_geom, hazard, subregion, "missing"])
+            continue
 
 
-    missing_df = pd.DataFrame(missing, columns=["asset_geom", "hazard", "subregion"])
-    missing_df = missing_df.groupby(["asset_geom", "hazard"]).agg(
+    missing_df = pd.DataFrame(missing, columns=["asset_geom", "hazard", "subregion", "reason"])
+    missing_df = missing_df.groupby(["asset_geom", "hazard", "reason"]).agg(
         count=("subregion", "count"),
         subregions=("subregion", list)
         )
     missing_df["subregions"] = missing_df["subregions"].str.join(";")
     missing_df.to_csv(outdir / "missing_expected.csv")
 
+    print(f"\nMissing expected values:\n{missing_df}")
     print("finished.")
+
+subprocess.run(["say", "done"])
 # %%

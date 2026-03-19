@@ -13,6 +13,8 @@ Format Pamela's results to match cleaned risk profiles.
 """
 # %%
 import os
+import shutil
+import subprocess
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -24,13 +26,20 @@ from oi_risk import config
 pd.options.display.max_columns = None
 
 
-REDO = True
+remake = False
 asset = ["tza_roads_edges", "tza_railway_edges"][0]
 rename_hazards = {
     "tasmax": "extremeheat",
     "hd35": "extremeheat"
 }
 
+exclude = [
+    # TODO: remove these once railway mystery is solved
+    # TODO: remove comments once done (if comments are here, then not done)
+    'kaskazini_unguja', 'kusini_unguja',
+    'mjini_magharibi',
+    'kaskazini_pemba','kusini_pemba' 
+]
 
 def rename_heat_columns(vector:pd.DataFrame) -> pd.DataFrame:
     heatstrs = list(rename_hazards.keys())
@@ -212,7 +221,7 @@ if __name__ == "__main__":
 
     inp_dir = Path(config["paths"]["extremeheat"]) / "intersections"
     ref_dir = Path(config["paths"]["snakemake"]) / "temp" / "assets"
-    out_dir = Path(config["paths"]["results"]) / "intersections"
+    outdir = Path(config["paths"]["results"]) / "intersections"
 
     paths = glob(f"{inp_dir}/{asset}/*/splits.geoparquet")
 
@@ -226,19 +235,25 @@ if __name__ == "__main__":
             paths = [splits_path]
 
         subregion = Path(splits_path).parent.name
-
         print(f"Processing {asset} - {subregion}...")
         
-        out_path = out_dir / asset / "extremeheat" / subregion / "profile.geoparquet"
-        
-        if os.path.exists(out_path) and not REDO:
-            print(f"Already exists: {out_path}")
+        outpath = outdir / asset / "extremeheat" / subregion / "profile.geoparquet"
+
+        if subregion in exclude and outpath.exists():
+            tmpdir = outdir / asset / "extremeheat" / subregion
+            print(f"Removing {tmpdir} from results.")
+            shutil.rmtree(tmpdir)
             continue
-        Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    
+        if os.path.exists(outpath) and not remake:
+            print(f"Already exists: {outpath}")
+            continue
+        
+        Path(outpath).parent.mkdir(parents=True, exist_ok=True)
 
         ref_path = Path(str(splits_path).replace(str(inp_dir), str(ref_dir)).replace("/splits", ""))
 
-        print(out_path)
+        print(outpath)
         print(ref_path)
 
         vector_ref = gpd.read_parquet(ref_path)
@@ -278,9 +293,8 @@ if __name__ == "__main__":
 
         vector_clean = pd.concat(sub_dfs, ignore_index=False)
         vector_clean = rename_heat_columns(vector_clean)
-        vector_clean.to_parquet(out_path)
-        print(f"Saved to {out_path}")
-        # break # TODO
+        vector_clean.to_parquet(outpath)
+        print(f"Saved to {outpath}")
 
-vector_clean.describe()
+subprocess.run(["say", "done"])
 # %%

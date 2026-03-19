@@ -69,8 +69,8 @@ if __name__ == "__main__":
     unstacked = results.groupby(groupby)["expected"].agg("sum").unstack("range").reset_index()
     groupby = [col for col in groupby if col != "range"]
     unstacked.columns = groupby + ["max", "mean", "min"] # alphabetical
-    unstacked = unstacked[groupby + ["min", "mean", "max"]]
-    unstacked.to_csv(outdir / "expected.csv")
+    out = unstacked[groupby + ["min", "mean", "max"]]
+    out.to_csv(outdir / "expected.csv")
 
     print("finished.")
 

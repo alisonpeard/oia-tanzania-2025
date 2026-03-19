@@ -1,19 +1,17 @@
 assets = {
     "tza_roads_edges": "Roads",
-    "tza_roads_bridges_and_culverts_nodes": "Bridges & Culverts",
     "tza_railway_edges": "Railways",
+    "tza_roads_bridges_and_culverts_nodes": "Bridges & Culverts",
     "tza_hubs_polygons": "Ports & Airports"
 }
 
 hazards = {
-    "fluvial": "Fluvial flooding",
     "pluvial": "Pluvial flooding",
+    "fluvial": "Fluvial flooding",
     "coastal": "Coastal flooding",
     "landslide": "Landslides",
     "cyclone": "Cyclones",
-    "hd35": "Extreme heat",
-    "tasmax": "Extreme heat",
-    "extremeheat": "Extreme heat"
+    "hd35": "Extreme heat"
 }
 
 fields = {

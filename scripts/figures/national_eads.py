@@ -10,7 +10,7 @@ from pathlib import Path
 from matplotlib.colors import ListedColormap
 
 from oi_risk import config as cfg
-from ttra.plot import labels, palette
+from ttra.plot import labels, hazardclrs, assetclrs
 
 sys.path.append("..") 
 sns.set_style("whitegrid")
@@ -33,10 +33,10 @@ unit_dict = {
 savefig = True
 metric  = "cost"
 scaling = scaling_dict[metric]
-unit    = scaling_dict[metric]
+unit    = unit_dict[metric]
 
 asset_filter = [
-    # "tza_roads_edges",
+    "tza_roads_edges",
     "tza_roads_bridges_and_culverts_nodes",
     "tza_railway_edges",
     "tza_hubs_polygons"
@@ -72,6 +72,10 @@ if __name__ == "__main__":
     data["hazard"] = data["hazard"].map(labels.hazards)
     data[['min', 'mean', 'max']] = data[['min', 'mean', 'max']] * scaling # million USD
     data = data.drop(columns=["metric", "asset_geom"])
+
+
+    data["hazard"] = pd.Categorical(data["hazard"], categories=labels.hazards.values(), ordered=True)
+    data["asset"] = pd.Categorical(data["asset"], categories=labels.assets.values(), ordered=True)
     # %%
     if True:
         # inspect variation between scenarios
@@ -109,7 +113,6 @@ if __name__ == "__main__":
                 row = row.iloc[0]
                 
                 if metric in ["damage", "cost"]:
-                    # no ranges for hazards
                     x = i + (j - n_hues/2 + 0.5) * bar_width
                     ax.errorbar(
                         x, row["mean"],
@@ -124,25 +127,24 @@ if __name__ == "__main__":
         ax.set_ylabel(f"Expected Annual Damages\n({unit})", fontweight="bold")
 
         summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
-        summary.to_csv(indir / "all.csv")
         print(summary)
 
         if savefig:
+            summary.to_csv(indir / f"{metric}.csv", index=False)
             fig.savefig(figdir / f"{metric}.png", transparent=True, dpi=300)
 
     # %%
-    import random
-
     if True:
         # inspect variation between hazards or assets for a given scenario
         scenario = "Medium"
-        random.seed(16)
-        colors = palette.copy()
+        width = 0.4
 
-        for hue in ["hazard", "asset"]:
-            random.shuffle(colors)
+        for hue, palette in [
+            ("hazard", hazardclrs),
+            ("asset", assetclrs)
+        ]:
             
-            data_scen = data[data["scenario"].isin(["Baseline", scenario])].copy()
+            data_scen = data[data["scenario"].isin(["Base", scenario])].copy()
             data_scen_pivot = data_scen.groupby(["epoch", hue])[['min', 'mean', 'max']].sum().reset_index()
 
             fig, ax = plt.subplots(figsize=(9, 3), constrained_layout=True)
@@ -151,17 +153,17 @@ if __name__ == "__main__":
                 x="epoch",
                 y="mean",
                 hue=hue,
-                width=0.4,
+                width=width,
                 linewidth=0.5, 
                 edgecolor="k",
-                palette=colors,
+                palette=palette,
                 ax=ax
             )
 
             n_epochs = len(epoch_order)
-            n_hues = data_scen_pivot[hue].nunique()
-            hue_order = data_scen_pivot[hue].unique()
-            width = 0.4
+            n_hues = len(data[hue].cat.categories)
+            hue_order = data[hue].cat.categories
+            width = width
             bar_width = width / n_hues
 
             summary = []
@@ -170,6 +172,7 @@ if __name__ == "__main__":
                     row = data_scen_pivot[(data_scen_pivot["epoch"] == epoch) & (data_scen_pivot[hue] == hue_val)]
                     if row.empty:
                         continue
+
                     row = row.iloc[0]
                     if metric in ["damage", "cost"]:
                         x = i + (j - n_hues/2 + 0.5) * bar_width
@@ -178,27 +181,30 @@ if __name__ == "__main__":
                                     fmt='none', c='k', capsize=3, linewidth=1)
                     summary.append((epoch, hue_val, row['min'].round(2), row['mean'].round(2), row['max'].round(2), (row['mean']/tza_gdp*100).round(4)))
 
+
             ax.legend(title=labels.fields[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
             
             ax.set_xlabel("Epoch", fontweight="bold")
             ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")
 
             summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
-            summary.to_csv(indir / f"{hue}.csv")
             print(summary)
 
             if savefig:
+                summary.to_csv(indir / f"{metric}_{scenario}_{hue}.csv".lower(), index=False)
                 fig.savefig(figdir / f"{metric}_{scenario}_{hue}s.png".lower(), transparent=True, dpi=300)
     # %%
-    # NEW: conditional stackplots
-    cmap = ListedColormap(colors)
+    # Add new conditional stackplots
     yvar = "mean"
     epochs = ["2030", "2050", "2080"]
     scenarios = ["Low", "Medium", "High"]
 
-    for xvar, zvar in [["hazard", "asset"], ["asset", "hazard"]]:
+    for xvar, zvar, clrmap in [
+        ["hazard", "asset", assetclrs],
+        ["asset", "hazard", hazardclrs]
+        ]:
 
-        fig, axs = plt.subplots(3, 3, figsize=(9, 9), constrained_layout=True, sharex=True, sharey=True)
+        fig, axs = plt.subplots(3, 3, figsize=(8, 5), constrained_layout=True, sharex=True, sharey=True)
 
         i = 0
         for epoch in epochs:
@@ -208,18 +214,43 @@ if __name__ == "__main__":
                 data_sub = data_sub[data_sub['scenario'] == scen]
                 data_sub = data_sub.groupby([xvar, zvar])[[yvar]].sum(min_count=1).reset_index()
                 data_pivot = data_sub.pivot(index=xvar, columns=zvar, values=yvar)
-                data_pivot.plot(kind='bar', stacked=True, cmap=cmap, ax=ax, legend=(i==0), edgecolor='k', linewidth=0.5)
-                if i == 0:
-                    ax.get_legend().set_title(labels.fields[zvar])
+
+
+                clrs = [clrmap[col] for col in data_pivot.columns]
+                data_pivot.plot(kind='bar', stacked=True, color=clrs, ax=ax, legend=False, edgecolor='k', linewidth=0.5)
+
+                # adjust subplot appearances
                 ax.label_outer()
+                ax.grid(axis='x', visible=False)
+                ax.set_yticks(range(0, int(data[yvar].max()) + 50, 25))
                 i += 1
 
+
+        # make legend
+        handles, lbels = ax.get_legend_handles_labels()
+        fig.legend(
+            handles, 
+            lbels, 
+            title=labels.fields[zvar], 
+            loc='upper center', 
+            bbox_to_anchor=(0.5, 1.105),
+            ncol=len(lbels),
+            frameon=False,
+            title_fontproperties={"weight": "bold"}
+        )
+
         for i, epoch in enumerate(epochs):
-            axs[i, 0].set_ylabel(epoch)
+            axs[i, 0].set_ylabel(epoch, fontweight="bold")
         
         for i, scen in enumerate(scenarios):
-            axs[-1, i].set_xlabel(scen)
-
+            axs[-1, i].set_xlabel(scen, fontweight="bold")
+            xlabels = axs[-1, i].get_xticklabels()
+            xlabels = [x.get_text().replace(" ", "\n") for x in xlabels]
+            axs[-1, i].set_xticklabels(
+                xlabels, rotation=45, ha='center'
+            )
+        plt.subplots_adjust(top=0.85)
         if savefig:
+            data_pivot.to_csv(indir / f"{metric}_{scenario}_{xvar}sv{zvar}s.csv".lower(), index=True)
             fig.savefig(figdir / f"{metric}_{scenario}_{xvar}sv{zvar}s.png".lower(), transparent=True, dpi=300)
     # %%
