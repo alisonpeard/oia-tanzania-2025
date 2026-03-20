@@ -7,6 +7,21 @@ import geopandas as gpd
 __all__ = ["load_risk_profile", "load_risk_expected"]
 
 
+def handle_duplicates_profiles(asset:pd.DataFrame) -> pd.DataFrame:
+    """This is to handle double-counting in older results dataframes.
+    Won't be needed for new analysis. Just don't want to make others
+    re-run their results.
+    """
+    if asset[["id", "geometry"]].duplicated().any():
+        print(f"dropping duplicates... ({len(asset)} -> ", end="")
+        asset = asset.groupby(["id", "geometry"]).max().reset_index()
+        print(f"{len(asset)}) rows")
+        return asset.copy()
+    else:
+        print("passed duplicates check.")
+        return asset.copy()
+    
+
 def load_risk_profile(asset_dir, subregion=None, verbose=False):
     """Helper function to load the asset risk profile data.
     
@@ -29,6 +44,11 @@ def load_risk_profile(asset_dir, subregion=None, verbose=False):
             asset_subregion["subregion"] = subregion_name
             asset_dfs.append(asset_subregion)
         asset = pd.concat(asset_dfs, axis=0, ignore_index=True)
+
+        # NOTE: this is a patch for earlier double counting. Won't be needed
+        # for new intersections data.
+        asset = handle_duplicates_profiles(asset)
+
     if verbose:
         print(f"Loaded {len(asset)} assets from {asset_dir}")
     return asset.copy()
@@ -46,8 +66,8 @@ def duplicates_expected(asset:pd.DataFrame, columns:list) -> bool:
 
 def handle_duplicates_expected(asset:pd.DataFrame) -> pd.DataFrame:
     """This is to handle double-counting in older results dataframes.
-    Won't be needed for new analysis. Just don't want to make others re-run
-    their results.
+    Won't be needed for new analysis. Just don't want to make others
+    re-run their results.
     """
     metacols = ["id", "unit"] # NOTE: "subregion" NOT included
     scencols = ["hazard", "epoch", "scenario", "range", "metric", "expected"]

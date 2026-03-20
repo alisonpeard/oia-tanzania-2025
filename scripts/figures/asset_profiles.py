@@ -67,7 +67,7 @@ if __name__ == "__main__":
         elif metric == "cost":
             units = "USD"
 
-        # wrange df into correct format for plotting
+        # wrangle df into correct format for plotting
         risk_cols = [col for col in df.columns if col.startswith(metric)]
         df_agg = df.groupby(assetcol)[risk_cols].sum().reset_index()
         risk_gdf = df_agg.melt(

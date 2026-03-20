@@ -333,4 +333,3 @@ if __name__ == "__main__":
             data_perc.to_csv(indir / f"{metric}_{scenario}_{xvar}sv{zvar}s.csv".lower(), index=True)
             fig.savefig(figdir / f"{metric}_{scenario}_{xvar}sv{zvar}s.png".lower(), transparent=True, dpi=300)
     # %%
-data_perc[data_perc['asset'] == 'Roads']
