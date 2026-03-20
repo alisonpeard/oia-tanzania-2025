@@ -43,14 +43,13 @@ def load_risk_profile(asset_dir, subregion=None, verbose=False):
             subregion_name = os.path.basename(os.path.dirname(f))
             asset_subregion["subregion"] = subregion_name
             asset_dfs.append(asset_subregion)
+        
         asset = pd.concat(asset_dfs, axis=0, ignore_index=True)
-
-        # NOTE: this is a patch for earlier double counting. Won't be needed
-        # for new intersections data.
         asset = handle_duplicates_profiles(asset)
 
     if verbose:
         print(f"Loaded {len(asset)} assets from {asset_dir}")
+    
     return asset.copy()
 
 
