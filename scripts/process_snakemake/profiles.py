@@ -5,6 +5,7 @@ post-processing because it would be done before snakemake.
 Add new post-processing steps as needed.
 
 NOTE: don't do heat here (handled separately)
+NOTE: forgot to remove _0 suffixes, should have done?
 
 Post-processing implemented:
     Roads:
@@ -63,6 +64,7 @@ exclude = [
     'mjini_magharibi',
     'kaskazini_pemba','kusini_pemba' 
 ]
+
 
 def scale_landslide_risk(asset:gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     warn("Scaling landslide costs & damages by 0.3. Won't be necessary in future.")

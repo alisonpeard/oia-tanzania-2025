@@ -23,11 +23,13 @@ from pathlib import Path
 from tqdm import tqdm
 from oi_risk import config
 
+
 pd.options.display.max_columns = None
 
 
-remake = False
-asset = ["tza_roads_edges", "tza_railway_edges"][0]
+remake = True
+dryrun = True
+asset = ["tza_roads_edges", "tza_railway_edges"][1]
 rename_hazards = {
     "tasmax": "extremeheat",
     "hd35": "extremeheat"
@@ -182,6 +184,7 @@ def clean_duplicate_columns(df, cost_cols):
             if single_suffix_col in df.columns and col in df.columns:
                 cost_cols_to_drop.append(col)
                 continue
+        
         if s0 != s1:
             if (s0 in suffixes) and (s1 in suffixes):
                 # it's a _min_mean etc - drop
@@ -259,7 +262,6 @@ if __name__ == "__main__":
 
         sub_dfs = []
         for sub_path in paths:
-
             vector_splits = gpd.read_parquet(sub_path)
 
             # define the groups of risk columns to keep
@@ -270,7 +272,7 @@ if __name__ == "__main__":
             hazard_cols += defended_cols
             hazard_cols = list(set(hazard_cols))
             damage_cols = list(set(damage_cols))
-            cost_cols = list(set(cost_cols))
+            cost_cols   = list(set(cost_cols))
 
             vector_splits, cost_cols = clean_duplicate_columns(
                 vector_splits, cost_cols
@@ -294,5 +296,8 @@ if __name__ == "__main__":
         vector_clean.to_parquet(outpath)
         print(f"Saved to {outpath}")
 
+        if dryrun: break
+
 subprocess.run(["say", "done"])
+
 # %%

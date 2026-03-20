@@ -34,6 +34,36 @@ def load_risk_profile(asset_dir, subregion=None, verbose=False):
     return asset.copy()
 
 
+def duplicates_expected(asset:pd.DataFrame, columns:list) -> bool:
+    asset = asset.groupby(columns)["expected"].count()
+    duplicated = asset[asset > 1].copy()
+    if duplicated.max() > 1:
+        print(f"{len(duplicated)} duplicates found.")
+        return True
+    else:
+        return False
+
+
+def handle_duplicates_expected(asset:pd.DataFrame) -> pd.DataFrame:
+    """This is to handle double-counting in older results dataframes.
+    Won't be needed for new analysis. Just don't want to make others re-run
+    their results.
+    """
+    metacols = ["id", "unit"] # NOTE: "subregion" NOT included
+    scencols = ["hazard", "epoch", "scenario", "range", "metric", "expected"]
+    
+    if duplicates_expected(asset, metacols + scencols):
+        print(f"dropping duplicates... ({len(asset)} -> ", end="")
+        asset1 = asset.drop_duplicates(subset=metacols + scencols)
+        assert not duplicates_expected(asset1, metacols + scencols), \
+            "duplicates still found after dropping duplicates."
+        print(f"{len(asset1)}) rows")
+        return asset1
+    else:
+        print("passed duplicates check.")
+        return asset.copy()
+
+
 def load_risk_expected(asset_dir, subregion=None, verbose=False, nonzero=True):
     """Helper function to load the asset risk profile data.
     
@@ -48,7 +78,7 @@ def load_risk_expected(asset_dir, subregion=None, verbose=False, nonzero=True):
         asset = pd.read_parquet(asset_path).reset_index()
     else:
         if verbose:
-            print(f"Loading all subregions from {asset_dir}")
+            print(f"loading all subregions from {asset_dir}")
         
         asset_files = glob(os.path.join(asset_dir, "*", "expected.parquet"))
         asset_dfs = []
@@ -66,6 +96,7 @@ def load_risk_expected(asset_dir, subregion=None, verbose=False, nonzero=True):
             return None
         
         asset = pd.concat(asset_dfs, axis=0, ignore_index=True)
+        asset = handle_duplicates_expected(asset)
 
         try:
             asset = asset[asset["expected"] > 0].copy() if nonzero else asset
@@ -75,6 +106,6 @@ def load_risk_expected(asset_dir, subregion=None, verbose=False, nonzero=True):
             raise(e)
     
     if verbose:
-        print(f"Loaded {len(asset)} assets from {asset_dir}")
+        print(f"loaded {len(asset)} assets from {asset_dir}")
 
     return asset.copy()

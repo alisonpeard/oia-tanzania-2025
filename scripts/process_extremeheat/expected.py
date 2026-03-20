@@ -14,9 +14,12 @@ from tqdm import tqdm
 from pathlib import Path
 from scipy import integrate
 import logging
+import subprocess
 from oi_risk import config
 
-REDO = True
+
+remake = True
+
 
 def extract_hazard_info(hazcol:str) -> tuple[str, str, str, int]:
     """Extract hazard, epoch, scenario, and return period from hazard column name."""
@@ -146,11 +149,11 @@ def main(input, output, params=None):
     check_for_negatives(final_df)
     logging.info(f"Saved expected risk results to {output}")
 
-# %%
+
 
 if __name__ == "__main__":
 
-    for asset in ["tza_roads_edges"]: #["tza_railway_edges", "tza_roads_edges"]:
+    for asset in ["tza_railway_edges", "tza_roads_edges"]:
 
         cfg = config.load_config()
         wd = Path(cfg["paths"]["results"]) / "intersections" / asset / "extremeheat"
@@ -161,11 +164,10 @@ if __name__ == "__main__":
 
         for input in tqdm(inputs):
             output = input.replace("profile.geoparquet", "expected.parquet")
-            if os.path.exists(output) and not REDO:
+            if os.path.exists(output) and not remake:
                 print(f"Already exists: {output}")
                 continue
             main(input, output)
-# %%
 
-!say done
+subprocess.run(["say", "done"])
 # %%

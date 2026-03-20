@@ -38,8 +38,8 @@ if __name__ == "__main__":
     missing = []
     for asset_geom in assets:
         for hazard in hazards:
-
             inpath = indir / asset_geom / hazard
+
             if not os.path.exists(inpath):
                 print(f"No data for: ({asset_geom}, {hazard}) - skipping")
                 continue
@@ -60,8 +60,11 @@ if __name__ == "__main__":
 
             res["hazard"] = hazard
             res["asset_geom"] = asset_geom
+            res = res.groupby([
+                "hazard", "asset_geom", "epoch",
+                "scenario", "metric", "range"
+            ])["expected"].sum().reset_index()
 
-            res = res.groupby(["hazard", "asset_geom", "epoch", "scenario", "metric", "range"])["expected"].sum().reset_index()
             reslist.append(res)
 
     results = pd.concat(reslist, axis=0, ignore_index=True)

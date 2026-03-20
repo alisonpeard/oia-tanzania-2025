@@ -34,6 +34,7 @@ savefig = True
 metric  = "cost"
 scaling = scaling_dict[metric]
 unit    = unit_dict[metric]
+project = [None, "ccdr", "cerc"][0]
 
 asset_filter = [
     "tza_roads_edges",
@@ -51,6 +52,13 @@ hazard_filter = [
     "extremeheat"
 ]
 
+if project is not None:
+    if project == "cerc":
+        hazard_filter = ["fluvial", "pluvial", "coastal", "landslide", "cyclone"]
+    if project == "ccdr":
+        hazard_filter = ["fluvial", "extremeheat"]
+        asset_filter = ["tza_roads_edges", "tza_roads_bridges_and_culverts_nodes"]
+
 if __name__ == "__main__":
     config = cfg.load_config()
     indir = Path(config["paths"]["results"]) / "summary_tables"
@@ -58,7 +66,7 @@ if __name__ == "__main__":
     figdir.mkdir(exist_ok=True, parents=True)
 
     data = pd.read_csv(indir / "expected.csv", index_col=[0])
-    # %%
+    
     epoch_order = ["baseline", "2030", "2050", "2080"]
     scen_order = ["Base", "Low", "Medium", "High"]
     data = data[data["metric"] == metric].copy()
@@ -72,15 +80,14 @@ if __name__ == "__main__":
     data["hazard"] = data["hazard"].map(labels.hazards)
     data[['min', 'mean', 'max']] = data[['min', 'mean', 'max']] * scaling # million USD
     data = data.drop(columns=["metric", "asset_geom"])
-
-
     data["hazard"] = pd.Categorical(data["hazard"], categories=labels.hazards.values(), ordered=True)
     data["asset"] = pd.Categorical(data["asset"], categories=labels.assets.values(), ordered=True)
-    # %%
+
     if True:
         # inspect variation between scenarios
         hue = "scenario"
         data_pivot = data.groupby(["epoch", hue])[['min', 'mean', 'max']].sum().reset_index()
+
 
         fig, ax = plt.subplots(figsize=(9, 3), constrained_layout=True)
 
@@ -104,6 +111,7 @@ if __name__ == "__main__":
         bar_width = width / n_hues
         tza_gdp = 87.44 * 1e9 * scaling # wikipedia.org/wiki/Economy_of_Tanzania
 
+        # add errorbars
         summary = []
         for i, epoch in enumerate(epoch_order):
             for j, hue_val in enumerate(hue_order):
@@ -124,15 +132,18 @@ if __name__ == "__main__":
                     epoch, hue_val, row['min'].round(2),
                     row['mean'].round(2), row['max'].round(2),
                     (row['mean']/tza_gdp*100).round(4),
-                    (row['mean']/tza_gdp*100).round(4),
-                    (row['mean']/tza_gdp*100).round(4),
+                    (row['min']/tza_gdp*100).round(4),
+                    (row['max']/tza_gdp*100).round(4),
                 ))
 
         ax.legend(title=labels.fields[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
         ax.set_xlabel("Epoch", fontweight="bold")
         ax.set_ylabel(f"Expected Annual Damages\n({unit})", fontweight="bold")
 
-        summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
+        summary = pd.DataFrame(summary, columns=[
+            "epoch", hue, "min", "mean", "max",
+            "mean GDP(%)", "min GDP(%)", "max GDP(%)"
+        ])
         print(summary)
 
         if savefig:
@@ -185,7 +196,7 @@ if __name__ == "__main__":
                         ax.errorbar(x, row["mean"], 
                                     yerr=[[row["mean"] - row["min"]], [row["max"] - row["mean"]]], 
                                     fmt='none', c='k', capsize=3, linewidth=1)
-                    summary.append((epoch, hue_val, row['min'].round(2), row['mean'].round(2), row['max'].round(2), (row['mean']/tza_gdp*100).round(4)))
+                    summary.append((epoch, hue_val, row['min'].round(2), row['mean'].round(2), row['max'].round(2), (row['mean']/tza_gdp*100).round(4), (row['min']/tza_gdp*100).round(4), (row['max']/tza_gdp*100).round(4)))
 
 
             ax.legend(title=labels.fields[hue], frameon=False, loc="upper left", bbox_to_anchor=(1.02, 1))
@@ -193,12 +204,13 @@ if __name__ == "__main__":
             ax.set_xlabel("Epoch", fontweight="bold")
             ax.set_ylabel("Expected Annual Damages\n(million USD)", fontweight="bold")
 
-            summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "GDP(%)"])
+            summary = pd.DataFrame(summary, columns=["epoch", hue, "min", "mean", "max", "mean GDP(%)", "min GDP(%)", "max GDP(%)"])
             print(f"\nSummary {hue}:\n{summary}\n")
 
             if savefig:
                 summary.to_csv(indir / f"{metric}_{scenario}_{hue}.csv".lower(), index=False)
                 fig.savefig(figdir / f"{metric}_{scenario}_{hue}s.png".lower(), transparent=True, dpi=300)
+    
     # %%
     # Add new conditional stackplots
     ymid = "mean"
@@ -241,6 +253,7 @@ if __name__ == "__main__":
         )
 
         i = 0
+        summaries = []
         for epoch in epochs:
             for scen in scenarios:
                 ax = axs.flat[i]
@@ -266,6 +279,10 @@ if __name__ == "__main__":
                 ax.label_outer()
                 ax.grid(axis='x', visible=False)
                 add_errorbars(ax, data_min, data_mid, data_max)
+
+                data_perc = data_mid / data_mid.sum(axis=1) * 100
+
+                summaries.append((epoch, scen, data_perc))
                 i += 1
 
         # clean y-axis ticks and gridlines
@@ -300,7 +317,20 @@ if __name__ == "__main__":
                 xlabels, rotation=45, ha='center'
             )
         plt.subplots_adjust(top=0.85)
+
+        data_perc = pd.concat([
+            pd.DataFrame({
+                "epoch": epoch,
+                "scenario": scen,
+                xvar: data_perc.index,
+                **{col: data_perc[col].values for col in data_perc.columns}
+            }) for epoch, scen, data_perc in summaries
+        ], ignore_index=True)
+
+        print(f"\nSummary {xvar} vs {zvar}:\n{data_perc.groupby(xvar)[list(clrmap.keys())].mean()}\n")
+
         if savefig:
-            data_pivot.to_csv(indir / f"{metric}_{scenario}_{xvar}sv{zvar}s.csv".lower(), index=True)
+            data_perc.to_csv(indir / f"{metric}_{scenario}_{xvar}sv{zvar}s.csv".lower(), index=True)
             fig.savefig(figdir / f"{metric}_{scenario}_{xvar}sv{zvar}s.png".lower(), transparent=True, dpi=300)
     # %%
+data_perc[data_perc['asset'] == 'Roads']
